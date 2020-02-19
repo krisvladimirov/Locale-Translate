@@ -4,6 +4,9 @@ using System.Text;
 
 namespace LocalisationTranslator
 {
+    /// <summary>
+    /// The structured localisation
+    /// </summary>
     public class Localisation
     {
         /// <summary>

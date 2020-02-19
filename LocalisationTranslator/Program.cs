@@ -53,10 +53,7 @@ namespace LocalisationTranslator
         /// </summary>
         private static bool Process()
         {
-            if (!ReadLocalisation())
-            {
-                return false;
-            }
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -64,12 +61,7 @@ namespace LocalisationTranslator
         /// </summary>
         private static bool ReadLocalisation()
         {
-            if (!string.IsNullOrWhiteSpace(settings.Input))
-            {
-                var err = new ErrorLog() { Occurance = Occurance.WhenAttempingToRead };
-                err.
-                errors.Add(new ErrorLog() { ErrorMessage = ErrorLog.FIle})
-            }
+            throw new NotImplementedException();
         }
 
         /// <summary>

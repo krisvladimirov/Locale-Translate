@@ -9,10 +9,6 @@ namespace LocalisationTranslator
     /// </summary>
     public class ErrorLog
     {
-        // Error list
-        private static string 
-
-
         /// <summary>
         /// The error message spit out
         /// </summary>
