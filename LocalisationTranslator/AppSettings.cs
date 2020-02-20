@@ -30,11 +30,6 @@ namespace LocalisationTranslator
         public FileStructure FileStructure { get; set; }
 
         /// <summary>
-        /// The headers of the file providing its 
-        /// </summary>
-        public List<string> CSVHeaders { get; set; }
-
-        /// <summary>
         /// The application settings' validation
         /// </summary>
         public Validation Validation { get; set; }

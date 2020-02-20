@@ -1,0 +1,10 @@
+"key", "context", "language", "text"
+"Welcome",,"en","Welcome to the app"
+"Tutorial.CreateEvent",,"en","To create an given provide the following proterties"
+"Tutorial.JoinEvent",,"en","To join an event click here"
+"Tutorial.SearchEvent",,"en","To search for an event click here"
+"Tutorial.ShareEvent",,,
+"Tutorial.BookEvent",,"en", 'To book an event do this"
+"Notification.Pending.JoinRequest,,"en","You have {0} users asking to join"
+"Notification.ReadyCheck.Accept",,"en", "<strong>Accept<strong>"
+"Notification.ReadyCheck.Decline,,"en", "<strong>Decline<strong>"
