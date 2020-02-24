@@ -11,6 +11,9 @@ using Amazon.Translate;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Configuration;
+using CsvHelper;
+using System.Globalization;
+using System.Dynamic;
 
 namespace LocalisationTranslator
 {
@@ -19,10 +22,14 @@ namespace LocalisationTranslator
     /// </summary>
     public class Program
     {
-        private static Dictionary<Occurance, List<ErrorLog>> errors = new Dictionary<Occurance, List<ErrorLog>>();
+        private static List<ErrorLog> errors = new List<ErrorLog>();
         private static IConfiguration config;
         private static AWSOptions awsOptions;
         private static AppSettings settings;
+        private static List<dynamic> records = new List<dynamic>();
+        private static List<string> allHeaders = new List<string>();
+        // The total records including bad ones
+        private static short totalRecords = 0;
 
         private static string SETTINGS_SECTION = "Settings";
         static void Main(string[] args)
@@ -34,28 +41,38 @@ namespace LocalisationTranslator
             // Build the application settings data model
             Program.settings = config.GetSection(SETTINGS_SECTION).Get<AppSettings>();
 
-            Console.WriteLine("Hello");
             //var service = new TranslateService(awsOptions.CreateServiceClient<IAmazonTranslate>());
-            Program.Process();
-
-            var properties = new List<DynamicTypeProperty>()
+            var outcome = Program.LoadDynamicRecord();
+            if (outcome)
             {
-                new DynamicTypeProperty("doubleProperty", typeof(double)),
-                new DynamicTypeProperty("stringProperty", typeof(string))
-            };
+                Console.WriteLine("Successful");
+            }
+            else
+            {
+                Console.WriteLine("Unsuccessful");
+            }
+            Program.PrintErrorLog();
 
-            // create the new type
-            var dynamicType = DynamicType.CreateDynamicType(properties);
-            // create a list of the new type
-            var dynamicList = DynamicType.CreateDynamicList(dynamicType);
 
-            // get an action that will add to the list
-            var addAction = DynamicType.GetAddAction(dynamicList);
 
-            // call the action, with an object[] containing parameters in exact order added
-            addAction.Invoke(new object[] { 1.1, "item1" });
-            addAction.Invoke(new object[] { 2.1, "item2" });
-            addAction.Invoke(new object[] { 3.1, "item3" });
+            //var properties = new List<DynamicTypeProperty>()
+            //{
+            //    new DynamicTypeProperty("doubleProperty", typeof(double)),
+            //    new DynamicTypeProperty("stringProperty", typeof(string))
+            //};
+
+            //// create the new type
+            //var dynamicType = DynamicType.CreateDynamicType(properties);
+            //// create a list of the new type
+            //var dynamicList = DynamicType.CreateDynamicList(dynamicType);
+
+            //// get an action that will add to the list
+            //var addAction = DynamicType.GetAddAction(dynamicList);
+
+            //// call the action, with an object[] containing parameters in exact order added
+            //addAction.Invoke(new object[] { 1.1, "item1" });
+            //addAction.Invoke(new object[] { 2.1, "item2" });
+            //addAction.Invoke(new object[] { 3.1, "item3" });
         }
 
         /// <summary>
@@ -69,6 +86,97 @@ namespace LocalisationTranslator
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .Build();
             return config;
+        }
+
+        /// <summary>
+        /// Loads the CSV
+        /// </summary>
+        /// <returns>'True' on successful read (may include bad data or missing fields), 'False' if the header were not validated or an internal error occured.</returns>
+        private static bool LoadDynamicRecord()
+        {
+            var skipRow = false;
+            var invalid = false;
+            using (var reader = new StreamReader(settings.FileStructure.Path))
+            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+            {
+
+                csv.Configuration.HasHeaderRecord = true;
+                csv.Configuration.MissingFieldFound = (headerNames, fieldIndex, context) =>
+                {
+                    skipRow = true;
+                    Program.errors.Add(new ErrorLog(Occurance.WhenReadingMissingData, context.Row, context.HeaderRecord[fieldIndex], fieldIndex));
+                };
+                csv.Configuration.BadDataFound = (context) =>
+                {
+                    skipRow = true;
+                    Program.errors.Add(new ErrorLog(Occurance.WhenReadingBadData, context.Row));
+                };
+
+                csv.Configuration.HasHeaderRecord = true;
+                csv.Read();
+
+                if (csv.ReadHeader())
+                {
+                    var fileHeaders = csv.Context.HeaderRecord;
+                    byte i = 0;
+
+                    if (fileHeaders.Length == 0)
+                    {
+                        invalid = true;
+                        Program.errors.Add(new ErrorLog(Occurance.NoData));
+                    }
+                    else if (fileHeaders.Length != Program.settings.FileStructure.Headers.Count)
+                    {
+                        invalid = true;
+                        if (fileHeaders.Length > Program.settings.FileStructure.Headers.Count)
+                        {
+                            Program.errors.Add(new ErrorLog(Occurance.WhenHeadersAreMore) { Token = Program.settings.FileStructure.Path });
+                        }
+                        else
+                        {
+                            Program.errors.Add(new ErrorLog(Occurance.WhenHeadersAreLess) { Token = Program.settings.FileStructure.Path });
+                        }
+                    }
+
+                    while (!invalid && i < fileHeaders.Length)
+                    {
+                        if (fileHeaders[i] != Program.settings.FileStructure.Headers[i])
+                        {
+                            invalid = true;
+                            Program.errors.Add(new ErrorLog(Occurance.WhenHeadersAreNotMatching, 0, fileHeaders[i], i));
+                        }
+                        i++;
+                    }
+                }
+
+                if (!invalid)
+                {
+                    try
+                    {
+                        while (csv.Read())
+                        {
+                            var record = csv.GetRecord<dynamic>();
+                            if (!skipRow)
+                            {
+                                Program.records.Add(record);
+                            }
+                            skipRow = false;
+                            totalRecords++;
+                        }
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Program.errors.Add(new ErrorLog(Occurance.CSVHelperThrow) { Message = ex.Message });
+                        return false;
+                    }
+
+                }
+                else
+                {
+                    return false;
+                }
+            }
         }
 
         /// <summary>
@@ -92,7 +200,7 @@ namespace LocalisationTranslator
         /// </summary>
         private static void ProcessRequests()
         {
-
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -100,31 +208,21 @@ namespace LocalisationTranslator
         /// </summary>
         private static void RemoveUnnecissaryKeys()
         {
-
+            throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Dump caught errors in the order they were caught
+        /// </summary>
         private static void PrintErrorLog()
         {
             using (var writer = new StreamWriter("error_log.txt"))
             {
-                foreach(var kvp in errors)
+                foreach (var error in Program.errors)
                 {
-                    if (kvp.Key == Occurance.WhenValidating)
-                    {
-                        //writer.WriteLine($"The following errors occured while reading data from {}");
-                    }
-                    else if (kvp.Key == Occurance.WhenShipping)
-                    {
-                        writer.WriteLine();
-                    }
-
-                    kvp.Value.ForEach(x =>
-                    {
-                        writer.WriteLine(x.FormatMessage(kvp.Key));
-                    });
+                    writer.WriteLine(error.Message);
                 }
             }
-
         }
     }
 

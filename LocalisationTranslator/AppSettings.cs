@@ -65,7 +65,7 @@ namespace LocalisationTranslator
     {
         /// <summary>
         /// Whether or not to add keys without any text to the translated output.
-        /// `True` would add them, `false` will print them into a separate csv file.
+        /// `True` would add them, `False` will print them into a separate csv file.
         /// </summary>
         public bool AddKeyWithNoText { get; set; }
 

@@ -10,9 +10,47 @@ namespace LocalisationTranslator
     public class ErrorLog
     {
         /// <summary>
-        /// The error message spit out
+        /// 
         /// </summary>
-        public string ErrorMessage { get; set; }
+        /// <param name="occurance"></param>
+        public ErrorLog(Occurance occurance)
+        {
+            this.Occurance = occurance;
+            this.Line = 0;
+            FormatMessage(this);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="occurance"></param>
+        /// <param name="line"></param>
+        public ErrorLog(Occurance occurance, int line)
+        {
+            this.Occurance = occurance;
+            this.Line = line;
+            FormatMessage(this);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="occurance"></param>
+        /// <param name="line"></param>
+        /// <param name="token"></param>
+        /// <param name="tokenIndex"></param>
+        public ErrorLog(Occurance occurance, int line, string token, int tokenIndex)
+        {
+            this.Occurance = occurance;
+            this.Line = line;
+            this.Token = token;
+            this.TokenIndex = tokenIndex;
+            FormatMessage(this);
+        }
+        /// <summary>
+        /// The error message to spit out
+        /// </summary>
+        public string Message { get; set; }
 
         /// <summary>
         /// When did the error happen
@@ -25,23 +63,61 @@ namespace LocalisationTranslator
         public int Line { get; set; }
 
         /// <summary>
-        /// The field at which the error occured
+        /// The token at which the error occured
         /// </summary>
-        public int Field { get; set; }
+        public string? Token { get; set; }
 
         /// <summary>
-        /// The field index (i.e. column) at which the error occured
+        /// The token index (i.e. column) at which the error occured
         /// </summary>
-        public int FieldIndex { get; set; }
+        public int TokenIndex { get; set; }
 
         /// <summary>
-        /// 
+        /// Formats the error for dumping.
         /// </summary>
-        /// <param name="occurance"></param>
+        /// <param name="error">The error to format</param>
         /// <returns></returns>
-        public string FormatMessage(Occurance occurance)
+        public static void FormatMessage(ErrorLog error)
         {
-            throw new NotImplementedException();
+            switch (error.Occurance)
+            {
+                case Occurance.NoData:
+                    error.Message = $"The file '{error.Token}' doesn't have any contents";
+                    break;
+
+                case Occurance.WhenHeadersAreLess:
+                    error.Message = $"It seems that there are less headers in '{error.Token}' than in 'AppSettings.FileStructure.Headers'";
+                    break;
+
+                case Occurance.WhenHeadersAreMore:
+                    error.Message = $"It seems that there are less headers in '{error.Token}' than in 'AppSettings.FileStructure.Headers'";
+                    break;
+
+                case Occurance.WhenHeadersAreNotMatching:
+                    error.Message = $"The header: '{error.Token}' at column: {error.TokenIndex} does not match with the specified header in 'AppSettings.FileStructure.Headers'";
+                    break;
+
+                case Occurance.WhenReadingMissingData:
+                    error.Message = $"At line: {error.Line}, no value was found for '{error.Token}'";
+                    break;
+
+                case Occurance.WhenReadingBadData:
+                    error.Message = "";
+                    break;
+
+                case Occurance.WhenValidating:
+                    error.Message = "";
+                    break;
+
+                case Occurance.WhenShipping:
+                    error.Message = "";
+                    break;
+
+                default:
+                    error.Message = "Error message could not be created, error type not matched";
+                    break;
+
+            }
         }
     }
 
@@ -50,8 +126,14 @@ namespace LocalisationTranslator
     /// </summary>
     public enum Occurance
     {
-        WhenAttempingToRead = 0,
-        WhenValidating = 1,
-        WhenShipping = 2
+        NoData = 0,
+        WhenHeadersAreLess = 1,
+        WhenHeadersAreMore = 2,
+        WhenHeadersAreNotMatching = 3,
+        WhenReadingMissingData = 4,
+        WhenReadingBadData = 5,
+        WhenValidating = 6,
+        WhenShipping = 7,
+        CSVHelperThrow = 8
     }
 }
