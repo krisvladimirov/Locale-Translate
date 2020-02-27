@@ -22,27 +22,47 @@ namespace LocalisationTranslator
     /// </summary>
     public class Program
     {
+        // List of error that were encountered while running
         private static List<ErrorLog> errors = new List<ErrorLog>();
+
+        // The configuration builder
         private static IConfiguration config;
+
+        // The AWS options
         private static AWSOptions awsOptions;
+
+        // The application settings
         private static AppSettings settings;
+        
+        // Service shipping/receiving the translation requests to and from AWS Translate
+        private static TranslateService translateService;
+
+        // All successfully read records as ExpandoObjects
         private static List<dynamic> records = new List<dynamic>();
-        private static List<string> allHeaders = new List<string>();
+
+        // The lines at which errors were encountered while reading from the csv file
+        private static List<int> erroredLines = new List<int>();
+
         // The total records including bad ones
         private static short totalRecords = 0;
 
-        private static string SETTINGS_SECTION = "Settings";
-        static void Main(string[] args)
-        {
-            // Builds the configuration provider
-            Program.config = GetConfiguration();
-            // Builds the AWS Options
-            Program.awsOptions = config.GetAWSOptions();
-            // Build the application settings data model
-            Program.settings = config.GetSection(SETTINGS_SECTION).Get<AppSettings>();
+        // Whether or not to terminate the main Thread
+        private static bool outcome = true;
 
-            //var service = new TranslateService(awsOptions.CreateServiceClient<IAmazonTranslate>());
-            var outcome = Program.LoadDynamicRecord();
+        private static string SETTINGS_SECTION = "Settings";
+        static int Main(string[] args)
+        {
+            
+            // Builds the configuration provider
+            config = GetConfiguration();
+            // Builds the AWS Options
+            awsOptions = config.GetAWSOptions();
+            // Build the application settings data model
+            settings = config.GetSection(SETTINGS_SECTION).Get<AppSettings>();
+            // Amazon's Translate service
+            translateService = new TranslateService(awsOptions.CreateServiceClient<IAmazonTranslate>());
+
+            outcome = Program.ReadLocalisation();
             if (outcome)
             {
                 Console.WriteLine("Successful");
@@ -50,29 +70,29 @@ namespace LocalisationTranslator
             else
             {
                 Console.WriteLine("Unsuccessful");
+                return -1;
             }
-            Program.PrintErrorLog();
 
+            foreach(var expando in records)
+            {
+                var record = (IDictionary<string, object>) expando;
+                var sb = new StringBuilder("");
+                foreach (var kvp in record)
+                {
+                    sb.Append($"{kvp.Value} ");
+                }
+                sb.Append("\n");
+                Console.WriteLine($"{sb}");
+            }
 
+            Program.Process();
 
-            //var properties = new List<DynamicTypeProperty>()
-            //{
-            //    new DynamicTypeProperty("doubleProperty", typeof(double)),
-            //    new DynamicTypeProperty("stringProperty", typeof(string))
-            //};
+            if (errors.Count > 0)
+            {
+                Program.PrintErrorLog();
+            }
 
-            //// create the new type
-            //var dynamicType = DynamicType.CreateDynamicType(properties);
-            //// create a list of the new type
-            //var dynamicList = DynamicType.CreateDynamicList(dynamicType);
-
-            //// get an action that will add to the list
-            //var addAction = DynamicType.GetAddAction(dynamicList);
-
-            //// call the action, with an object[] containing parameters in exact order added
-            //addAction.Invoke(new object[] { 1.1, "item1" });
-            //addAction.Invoke(new object[] { 2.1, "item2" });
-            //addAction.Invoke(new object[] { 3.1, "item3" });
+            return 0;
         }
 
         /// <summary>
@@ -92,34 +112,55 @@ namespace LocalisationTranslator
         /// Loads the CSV
         /// </summary>
         /// <returns>'True' on successful read (may include bad data or missing fields), 'False' if the header were not validated or an internal error occured.</returns>
-        private static bool LoadDynamicRecord()
+        private static bool ReadLocalisation()
         {
             var skipRow = false;
             var invalid = false;
+            var lastErrorLine = -1; 
             using (var reader = new StreamReader(settings.FileStructure.Path))
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
 
                 csv.Configuration.HasHeaderRecord = true;
+
+                // Configures a handler for missing fields
                 csv.Configuration.MissingFieldFound = (headerNames, fieldIndex, context) =>
                 {
                     skipRow = true;
                     Program.errors.Add(new ErrorLog(Occurance.WhenReadingMissingData, context.Row, context.HeaderRecord[fieldIndex], fieldIndex));
+                    
+                    // Omits lines which are already added, we don't want duplicates
+                    if (lastErrorLine != context.Row)
+                    {
+                        Program.erroredLines.Add(context.Row);
+                        lastErrorLine = context.Row;
+                    }
                 };
+
+                // Configures a handler for bad data
                 csv.Configuration.BadDataFound = (context) =>
                 {
                     skipRow = true;
                     Program.errors.Add(new ErrorLog(Occurance.WhenReadingBadData, context.Row));
+
+                    // Omits lines which are already added, we don't want duplicates
+                    if (lastErrorLine != context.Row)
+                    {
+                        Program.erroredLines.Add(context.Row);
+                        lastErrorLine = context.Row;
+                    }
                 };
 
                 csv.Configuration.HasHeaderRecord = true;
                 csv.Read();
-
+                
+                // Attempts to read the header for validation
                 if (csv.ReadHeader())
                 {
                     var fileHeaders = csv.Context.HeaderRecord;
                     byte i = 0;
 
+                    // If the file is empty
                     if (fileHeaders.Length == 0)
                     {
                         invalid = true;
@@ -127,6 +168,7 @@ namespace LocalisationTranslator
                     }
                     else if (fileHeaders.Length != Program.settings.FileStructure.Headers.Count)
                     {
+                        // If the length of the headers in the files and the provided headers does not match
                         invalid = true;
                         if (fileHeaders.Length > Program.settings.FileStructure.Headers.Count)
                         {
@@ -138,12 +180,13 @@ namespace LocalisationTranslator
                         }
                     }
 
+                    // If the header do not match
                     while (!invalid && i < fileHeaders.Length)
                     {
                         if (fileHeaders[i] != Program.settings.FileStructure.Headers[i])
                         {
                             invalid = true;
-                            Program.errors.Add(new ErrorLog(Occurance.WhenHeadersAreNotMatching, 0, fileHeaders[i], i));
+                            errors.Add(new ErrorLog(Occurance.WhenHeadersAreNotMatching, 0, fileHeaders[i], i));
                         }
                         i++;
                     }
@@ -151,6 +194,7 @@ namespace LocalisationTranslator
 
                 if (!invalid)
                 {
+                    // Attempts to read row by row
                     try
                     {
                         while (csv.Read())
@@ -167,7 +211,8 @@ namespace LocalisationTranslator
                     }
                     catch (Exception ex)
                     {
-                        Program.errors.Add(new ErrorLog(Occurance.CSVHelperThrow) { Message = ex.Message });
+                        // TODO: Should I add erroredLines here as well?
+                        errors.Add(new ErrorLog(Occurance.CSVHelperThrow) { Message = ex.Message });
                         return false;
                     }
 
@@ -184,15 +229,9 @@ namespace LocalisationTranslator
         /// </summary>
         private static bool Process()
         {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Reads the CSV localisation file
-        /// </summary>
-        private static bool ReadLocalisation()
-        {
-            throw new NotImplementedException();
+            RemoveUnnecissaryKeys();
+            // ProcessRequests();
+            return false;
         }
 
         /// <summary>
@@ -200,19 +239,84 @@ namespace LocalisationTranslator
         /// </summary>
         private static void ProcessRequests()
         {
+            // TODO: Make the spinny boi
+            var count = 0;
+            foreach(var expando in records){
+                var data = (IDictionary<String, String>) expando;
+                var text = data[settings.FileStructure.TextHeader]; 
+                if (!string.IsNullOrEmpty(text)) {
+                    try {
+                        var task =  translateService.TranslateText(text, settings.Source, settings.Target);
+                    }
+                    catch (Exception ex) {
+                        var line = FindOriginalErrorLine(count);
+                        errors.Add(new ErrorLog(Occurance.WhenTranslating, line, ex.Message));
+                    }
+                    
+                }
+                count++;
+            }
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Attempts to locate the record line which has caused an exception
+        /// </summary>
+        /// <param name="currentLine">The line of which an error occured while translating</param>
+        /// <returns>The original line at which this error is placed in the input file</returns>
+        private static int FindOriginalErrorLine(int currentLine) {
+            // Represent how much needs to be added to a line to map to its original placement in the CSV file
+            var positiveOffset = 0;
+            if (erroredLines.Count == 0)
+            {
+                return currentLine;
+            }
+
+
+            // currentLine is zero based
+            // while the errors are not zero based the header is also taken into account therefore if an error occures
+            // while reading the first record it will be at line 2 not 1
+            // that's why it is currentLine + 2
+            var errIndex = erroredLines.FindIndex(x => x >= currentLine + 2);
+            var errValue = erroredLines[errIndex];
+            if (errValue == currentLine + 2)
+            {
+                var foundLine = false;
+                while (!foundLine && errIndex < erroredLines.Count)
+                {
+                    errIndex++;
+                    var nextValue = erroredLines[errIndex];
+                    if (nextValue - errValue > 1)
+                    {
+                        positiveOffset = errIndex;
+                        foundLine = true;
+                    } 
+                    else
+                    {
+                        errValue = nextValue;
+                    }
+                }
+            } 
+            else
+            {
+                // Whenever currentLine + 2 is smaller than the nth item, we simple return the index of the nth item
+                positiveOffset = errIndex;
+            }
+
+            return positiveOffset;
         }
 
         /// <summary>
         /// 
         /// </summary>
         private static void RemoveUnnecissaryKeys()
-        {
+        {   
+            
             throw new NotImplementedException();
         }
 
         /// <summary>
-        /// Dump caught errors in the order they were caught
+        /// Dump caught errors in the order they were caught.
         /// </summary>
         private static void PrintErrorLog()
         {
@@ -221,127 +325,6 @@ namespace LocalisationTranslator
                 foreach (var error in Program.errors)
                 {
                     writer.WriteLine(error.Message);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// A property name, and type used to generate a property in the dynamic class.
-    /// </summary>
-    public class DynamicTypeProperty
-    {
-        public DynamicTypeProperty(string name, Type type)
-        {
-            Name = name;
-            Type = type;
-        }
-        public string Name { get; set; }
-        public Type Type { get; set; }
-    }
-
-    public static class DynamicType
-    {
-        /// <summary>
-        /// Creates a list of the specified type
-        /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        public static IEnumerable<object> CreateDynamicList(Type type)
-        {
-            var listType = typeof(List<>);
-            var dynamicListType = listType.MakeGenericType(type);
-            return (IEnumerable<object>)Activator.CreateInstance(dynamicListType);
-        }
-
-        /// <summary>
-        /// creates an action which can be used to add items to the list
-        /// </summary>
-        /// <param name="listType"></param>
-        /// <returns></returns>
-        public static Action<object[]> GetAddAction(IEnumerable<object> list)
-        {
-            var listType = list.GetType();
-            var addMethod = listType.GetMethod("Add");
-            var itemType = listType.GenericTypeArguments[0];
-            var itemProperties = itemType.GetProperties();
-
-            var action = new Action<object[]>((values) =>
-            {
-                var item = Activator.CreateInstance(itemType);
-
-                for (var i = 0; i < values.Length; i++)
-                {
-                    itemProperties[i].SetValue(item, values[i]);
-                }
-
-                addMethod.Invoke(list, new[] { item });
-            });
-
-            return action;
-        }
-
-        /// <summary>
-        /// Creates a type based on the property/type values specified in the properties
-        /// </summary>
-        /// <param name="properties"></param>
-        /// <returns></returns>
-        /// <exception cref="Exception"></exception>
-        public static Type CreateDynamicType(IEnumerable<DynamicTypeProperty> properties)
-        {
-            StringBuilder classCode = new StringBuilder();
-
-            // Generate the class code
-            classCode.AppendLine("using System;");
-            classCode.AppendLine("namespace Dexih {");
-            classCode.AppendLine("public class DynamicClass {");
-
-            foreach (var property in properties)
-            {
-                classCode.AppendLine($"public {property.Type.Name} {property.Name} {{get; set; }}");
-            }
-            classCode.AppendLine("}");
-            classCode.AppendLine("}");
-
-            var syntaxTree = CSharpSyntaxTree.ParseText(classCode.ToString());
-
-            var references = new MetadataReference[]
-            {
-                MetadataReference.CreateFromFile(typeof(object).GetTypeInfo().Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(DictionaryBase).GetTypeInfo().Assembly.Location)
-            };
-
-            var compilation = CSharpCompilation.Create("DynamicClass" + Guid.NewGuid() + ".dll",
-                syntaxTrees: new[] { syntaxTree },
-                references: references,
-                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-            using (var ms = new MemoryStream())
-            {
-                var result = compilation.Emit(ms);
-
-                if (!result.Success)
-                {
-                    var failures = result.Diagnostics.Where(diagnostic =>
-                        diagnostic.IsWarningAsError ||
-                        diagnostic.Severity == DiagnosticSeverity.Error);
-
-                    var message = new StringBuilder();
-
-                    foreach (var diagnostic in failures)
-                    {
-                        message.AppendFormat("{0}: {1}", diagnostic.Id, diagnostic.GetMessage());
-                    }
-
-                    throw new Exception($"Invalid property definition: {message}.");
-                }
-                else
-                {
-
-                    ms.Seek(0, SeekOrigin.Begin);
-                    var assembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(ms);
-                    var dynamicType = assembly.GetType("Dexih.DynamicClass");
-                    return dynamicType;
                 }
             }
         }

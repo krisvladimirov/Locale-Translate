@@ -32,6 +32,13 @@ namespace LocalisationTranslator
             FormatMessage(this);
         }
 
+        public ErrorLog(Occurance occurance, int line, string token){
+            this.Occurance = occurance;
+            this.Line = line;
+            this.Token = token;
+            FormatMessage(this);
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -109,6 +116,10 @@ namespace LocalisationTranslator
                     error.Message = "";
                     break;
 
+                case Occurance.WhenTranslating:
+                    error.Message = "";
+                    break;
+
                 case Occurance.WhenShipping:
                     error.Message = "";
                     break;
@@ -132,8 +143,9 @@ namespace LocalisationTranslator
         WhenHeadersAreNotMatching = 3,
         WhenReadingMissingData = 4,
         WhenReadingBadData = 5,
-        WhenValidating = 6,
-        WhenShipping = 7,
-        CSVHelperThrow = 8
+        WhenTranslating = 6,
+        WhenValidating = 7,
+        WhenShipping = 8,
+        CSVHelperThrow = 9
     }
 }
