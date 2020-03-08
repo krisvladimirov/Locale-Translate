@@ -30,9 +30,10 @@ namespace LocalisationTranslator
         public FileStructure FileStructure { get; set; }
 
         /// <summary>
-        /// The application settings' validation
+        /// 
         /// </summary>
-        public Validation Validation { get; set; }
+        /// <value></value>
+        public Options Options {get; set;}
 
     }
 
@@ -56,6 +57,15 @@ namespace LocalisationTranslator
         /// </summary>
         public string TextHeader { get; set; }
 
+        /// <summary>
+        /// Explicitly specifies which header contains the key
+        /// </summary>
+        public string KeyHeader { get; set; }
+        
+        /// <summary>
+        /// Explicitly specifies which header contains the language code
+        /// </summary>
+        public string LanguageHeader { get; set; }
     }
 
     /// <summary>
@@ -74,6 +84,24 @@ namespace LocalisationTranslator
         /// </summary>
         public MarkUpData ICUandHTML { get; set; }
 
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class Options
+    {
+        /// <summary>
+        /// The application validation settings
+        /// </summary>
+        public Validation Validation { get; set; }
+
+        /// <summary>
+        /// Whether or not to produce a comparison file
+        /// False by default
+        /// </summary>
+        /// <value></value>
+        public bool ComparisonFile { get; set; } = false;
     }
 
     /// <summary>

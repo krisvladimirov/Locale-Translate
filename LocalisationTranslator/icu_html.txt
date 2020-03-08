@@ -1,0 +1,2 @@
+The localisation string with key 'Notification.Pending.JoinRequest' with original line (9) was not processed as requested, but was saved on the translated file.
+The localisation string with key 'Notification.ReadyCheck.Accept' with original line (10) was not processed as requested, but was saved on the translated file.

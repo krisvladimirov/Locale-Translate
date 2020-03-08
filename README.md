@@ -8,9 +8,15 @@
 4. If there are not errors the log is simply not created.
 5. If there is missing data for header an error is logged process continues
 
+## What is supported?
+1. Finding the original line now working :heavy_check_mark:
+2. Comparison file ouput **false** by default
+
 ## What is not supported yet
 1. Comparison records
 2. Multi language translation
-3. Doesn't check if the if the language field are matching the source language
+3. Cost estimates
+4. Validating AWS credentials, so no '**Who Dis**' situations happen
+5. Doesn't check if the if the language field are matching the source language
    1. AWS could potentially throw an error if the source language is 'en' but something else is given as "Какво прайм сега, а? Ще се наказваме ли, ти ми кажи?" (To be tested)
-4. Terminologies are not supported.
+6. Terminologies are not supported.

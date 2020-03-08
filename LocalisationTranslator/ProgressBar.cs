@@ -14,13 +14,20 @@ namespace LocalisationTranslator
         private const int blockCount = 10;
         private readonly TimeSpan animationInterval = TimeSpan.FromSeconds(1.0 / 8);
         private const string animation = @"|/-\";
-
+    
         private readonly Timer timer;
 
         private double currentProgress = 0;
         private string currentText = string.Empty;
         private bool disposed = false;
         private int animationIndex = 0;
+
+        public int count = 0;
+
+        public int resetCounter = 0;
+
+        // The total amount of operations that will be performed
+        private ushort maxOperations = 0;
 
         public ProgressBar()
         {
@@ -35,10 +42,28 @@ namespace LocalisationTranslator
             }
         }
 
+        /// <summary>
+        /// Initializes a Progress bar with known maxinum number of operations, i.e. ticks
+        /// </summary>
+        /// <param name="maxOperations">The maximum number of operations that will be performed</param>
+        public ProgressBar(ushort maxOperations){
+            this.maxOperations = maxOperations;
+
+            timer = new Timer(TimerHandler);
+
+            // A progress bar is only for temporary display in a console window.
+            // If the console output is redirected to a file, draw nothing.
+            // Otherwise, we'll end up with a lot of garbage in the target file.
+            if (!Console.IsOutputRedirected)
+            {
+                ResetTimer();
+            }
+        }
+
         public void Report(double value)
         {
             // Make sure value is in [0..1] range
-            value = Math.Max(0, Math.Min(1, value));
+            value = Math.Max(0, Math.Min(1, value / maxOperations));
             Interlocked.Exchange(ref currentProgress, value);
         }
 
@@ -50,7 +75,7 @@ namespace LocalisationTranslator
 
                 int progressBlockCount = (int)(currentProgress * blockCount);
                 int percent = (int)(currentProgress * 100);
-                string text = string.Format("[{0}{1}] {2,3}% {3}",
+                string text = string.Format("[{0}{1}] {2}% {3}",
                     new string('#', progressBlockCount), new string('-', blockCount - progressBlockCount),
                     percent,
                     animation[animationIndex++ % animation.Length]);
@@ -62,6 +87,7 @@ namespace LocalisationTranslator
 
         private void UpdateText(string text)
         {
+            count++;
             // Get length of common portion
             int commonPrefixLength = 0;
             int commonLength = Math.Min(currentText.Length, text.Length);
@@ -91,6 +117,7 @@ namespace LocalisationTranslator
 
         private void ResetTimer()
         {
+            resetCounter++;
             timer.Change(animationInterval, TimeSpan.FromMilliseconds(-1));
         }
 
@@ -100,6 +127,8 @@ namespace LocalisationTranslator
             {
                 disposed = true;
                 UpdateText(string.Empty);
+                // Explicitly free the timer's resources
+                timer.Dispose();
             }
         }
 

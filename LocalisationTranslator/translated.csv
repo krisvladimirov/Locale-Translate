@@ -1,0 +1,6 @@
+key,context,language,text
+Tutorial.SearchEvent,,ja,To search for an event click here
+Tutorial.ShareEvent,,ja,To share an event click here
+Tutorial.BookEvent,,ja,To book an event do this
+Notification.Pending.JoinRequest,,ja,You have {0} users asking to join
+Notification.ReadyCheck.Accept,,ja,<strong>Accept<strong>

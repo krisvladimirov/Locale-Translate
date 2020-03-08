@@ -5,15 +5,15 @@ using System.Text;
 namespace LocalisationTranslator
 {
     /// <summary>
-    /// Represent an error which occured while running the app
+    /// Represent an a single error which occured while running the app or notification which would give insight about a key
     /// </summary>
-    public class ErrorLog
+    public class Log
     {
         /// <summary>
         /// 
         /// </summary>
         /// <param name="occurance"></param>
-        public ErrorLog(Occurance occurance)
+        public Log(Occurance occurance)
         {
             this.Occurance = occurance;
             this.Line = 0;
@@ -25,14 +25,14 @@ namespace LocalisationTranslator
         /// </summary>
         /// <param name="occurance"></param>
         /// <param name="line"></param>
-        public ErrorLog(Occurance occurance, int line)
+        public Log(Occurance occurance, int line)
         {
             this.Occurance = occurance;
             this.Line = line;
             FormatMessage(this);
         }
 
-        public ErrorLog(Occurance occurance, int line, string token){
+        public Log(Occurance occurance, int line, string token){
             this.Occurance = occurance;
             this.Line = line;
             this.Token = token;
@@ -46,7 +46,7 @@ namespace LocalisationTranslator
         /// <param name="line"></param>
         /// <param name="token"></param>
         /// <param name="tokenIndex"></param>
-        public ErrorLog(Occurance occurance, int line, string token, int tokenIndex)
+        public Log(Occurance occurance, int line, string token, int tokenIndex)
         {
             this.Occurance = occurance;
             this.Line = line;
@@ -84,48 +84,67 @@ namespace LocalisationTranslator
         /// </summary>
         /// <param name="error">The error to format</param>
         /// <returns></returns>
-        public static void FormatMessage(ErrorLog error)
+        public static void FormatMessage(Log log)
         {
-            switch (error.Occurance)
+            switch (log.Occurance)
             {
                 case Occurance.NoData:
-                    error.Message = $"The file '{error.Token}' doesn't have any contents";
+                    log.Message = $"The file '{log.Token}' doesn't have any contents";
                     break;
 
                 case Occurance.WhenHeadersAreLess:
-                    error.Message = $"It seems that there are less headers in '{error.Token}' than in 'AppSettings.FileStructure.Headers'";
+                    log.Message = $"It seems that there are less headers in '{log.Token}' than in 'AppSettings.FileStructure.Headers'";
                     break;
 
                 case Occurance.WhenHeadersAreMore:
-                    error.Message = $"It seems that there are less headers in '{error.Token}' than in 'AppSettings.FileStructure.Headers'";
+                    log.Message = $"It seems that there are less headers in '{log.Token}' than in 'AppSettings.FileStructure.Headers'";
                     break;
 
                 case Occurance.WhenHeadersAreNotMatching:
-                    error.Message = $"The header: '{error.Token}' at column: {error.TokenIndex} does not match with the specified header in 'AppSettings.FileStructure.Headers'";
+                    log.Message = $"The header: '{log.Token}' at column: {log.TokenIndex} does not match with the specified header in 'AppSettings.FileStructure.Headers'";
                     break;
 
                 case Occurance.WhenReadingMissingData:
-                    error.Message = $"At line: {error.Line}, no value was found for '{error.Token}'";
+                    log.Message = $"At line: {log.Line}, no value was found for '{log.Token}'";
                     break;
 
                 case Occurance.WhenReadingBadData:
-                    error.Message = "";
+                    log.Message = "";
                     break;
 
                 case Occurance.WhenValidating:
-                    error.Message = "";
+                    log.Message = "";
                     break;
 
                 case Occurance.WhenTranslating:
-                    error.Message = "";
+                    log.Message = "";
                     break;
 
                 case Occurance.WhenShipping:
-                    error.Message = "";
+                    log.Message = "";
+                    break;
+
+                case Occurance.CSVHelperThrow:
+                    log.Message = "";
+                    break;
+
+                case Occurance.NotTranslatedSeparateFile:
+                    log.Message = $"The localisation string with key '{log.Token}' with original line ({log.Line}) was not processed as requested, but was saved on a separate file as requested.";
+                    break;
+
+                case Occurance.NotTranslatedSameFile:
+                    log.Message = $"The localisation string with key '{log.Token}' with original line ({log.Line}) was not processed as requested, but was saved on the translated file.";
+                    break;
+
+                case Occurance.TranslatedSeparateFile:
+                    log.Message = $"The localisation string with key '{log.Token}' with original line ({log.Line}) was processed as requested, and was saved on a separate file as requested.";
+                    break;
+                case Occurance.TranslatedSameFile:
+                    log.Message = $"The localisation string with key '{log.Token}' with original line ({log.Line}) was processed as requested, and was saved on the translated file as requested.";
                     break;
 
                 default:
-                    error.Message = "Error message could not be created, error type not matched";
+                    log.Message = "Error message could not be created, error type not matched";
                     break;
 
             }
@@ -146,6 +165,10 @@ namespace LocalisationTranslator
         WhenTranslating = 6,
         WhenValidating = 7,
         WhenShipping = 8,
-        CSVHelperThrow = 9
+        CSVHelperThrow = 9,
+        NotTranslatedSeparateFile = 10,
+        NotTranslatedSameFile = 11,
+        TranslatedSeparateFile = 12,
+        TranslatedSameFile = 13
     }
 }
