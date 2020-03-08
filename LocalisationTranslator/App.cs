@@ -79,24 +79,24 @@ namespace LocalisationTranslator
             // Ensure the output folder in . is present
             Utils.CheckOutputPath();
 
-            // if (App.specialData.Count > 0)
-            // {
-            //     // Produces the logs for any records which contained either ICU or HTML data
-            //     Utils.DumpLog(specialData, App.ICU_HTML_LOG_FILE);
-            // }
+            if (App.specialData.Count > 0)
+            {
+                // Produces the logs for any records which contained either ICU or HTML data
+                Utils.DumpLog(specialData, App.ICU_HTML_LOG_FILE);
+            }
 
-            // if (settings.Options.ComparisonFile)
-            // {
-            //     Utils.DumpRecords(App.comparisonData, App.COMPARISON_FILE);
-            // }
+            if (settings.Options.ComparisonFile)
+            {
+                Utils.DumpRecords(App.comparisonData, App.COMPARISON_FILE);
+            }
 
-            // if (App.settings.Options.Validation.ICUandHTML.SeparateFile)
-            // {
-            //     DumpSeparatedRecords();
-            //     ClearSeparatedRecords();
-            // }
+            if (App.settings.Options.Validation.ICUandHTML.SeparateFile)
+            {
+                DumpSeparatedRecords();
+                ClearSeparatedRecords();
+            }
 
-            // Utils.DumpRecords(App.records, App.TRANSLATED_FILE);
+            Utils.DumpRecords(App.records, App.TRANSLATED_FILE);
 
             return true;
         }

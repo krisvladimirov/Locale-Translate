@@ -27,7 +27,7 @@ namespace LocalisationTranslator
             // If so check how many sub-directories exists
             // For each run of the App create a new sub directory
             var exists = Directory.Exists(outputDir);
-            Console.WriteLine(exists);
+
             if (!exists)
             {
                 // Creates the main output directory
@@ -39,11 +39,13 @@ namespace LocalisationTranslator
             else
             {
                 var numberOfRuns = 0;
-                // Check how many sub-directories are present
+                // Get all present sub-directories
                 List<string> paths = new List<string>(Directory.EnumerateDirectories(Utils.outputDir));
+
+                // Check how many are actually produced by the APP
                 foreach(var dir in paths)
                 {
-                    if (Regex.IsMatch(dir, @"\\run-[0-9]"))
+                    if (Regex.IsMatch(dir, @"\\run-\d+\Z"))
                     {
                         numberOfRuns++;
                     }
