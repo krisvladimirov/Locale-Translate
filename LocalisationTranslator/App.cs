@@ -1,13 +1,10 @@
 ﻿using Amazon.Extensions.NETCore.Setup;
 using Amazon.Translate;
-using CsvHelper;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Text;
+using System.Dynamic;
 using System.Text.RegularExpressions;
 
 namespace LocalisationTranslator
@@ -57,9 +54,12 @@ namespace LocalisationTranslator
         public static bool outcome = true;
 
         // The Settings section in the AppSettings.json
-        public static string SETTINGS_SECTION = "Settings";
-        public static string ERROR_LOG_FILE = "error_log.txt";
-        public static string ICU_HTML_LOG_FILE = "icu_html.txt";
+        private static string SETTINGS_SECTION = "Settings";
+        private static string ERROR_LOG_FILE = "error_log.txt";
+        private static string ICU_HTML_LOG_FILE = "icu_html.txt";
+        private static string TRANSLATED_FILE = "translated.csv";
+        private static string COMPARISON_FILE = "comparison.csv";
+        private static string SEPARATED_FILE = "separated_records.csv";
 
         /// <summary>
         /// Performs all required steps based on the settings
@@ -67,22 +67,36 @@ namespace LocalisationTranslator
         public static bool Process()
         {
             InitializeOptions();
-            ReadLocalisation();
-            ProcessRequests();
-            if (App.settings.Options.Validation.ICUandHTML.SeparateFile)
-            {
-                DumpSeparatedRecords();
-                ClearSeparatedRecords();
-            }
-            if (App.specialData.Count > 0)
-            {
-                DumpLog(specialData, App.ICU_HTML_LOG_FILE);
-            }
+            Utils.ReadLocalisation();
+
             if (settings.Options.ComparisonFile)
             {
-                MakeComparison();
+                MakeDeepCopy();
             }
-            SaveTranslatedRecords();
+
+            ProcessRequests();
+
+            // Ensure the output folder in . is present
+            Utils.CheckOutputPath();
+
+            // if (App.specialData.Count > 0)
+            // {
+            //     // Produces the logs for any records which contained either ICU or HTML data
+            //     Utils.DumpLog(specialData, App.ICU_HTML_LOG_FILE);
+            // }
+
+            // if (settings.Options.ComparisonFile)
+            // {
+            //     Utils.DumpRecords(App.comparisonData, App.COMPARISON_FILE);
+            // }
+
+            // if (App.settings.Options.Validation.ICUandHTML.SeparateFile)
+            // {
+            //     DumpSeparatedRecords();
+            //     ClearSeparatedRecords();
+            // }
+
+            // Utils.DumpRecords(App.records, App.TRANSLATED_FILE);
 
             return true;
         }
@@ -96,7 +110,6 @@ namespace LocalisationTranslator
             App.awsOptions = App.config.GetAWSOptions();
             App.settings = App.config.GetSection(SETTINGS_SECTION).Get<AppSettings>();
             App.translateService = new TranslateService(awsOptions.CreateServiceClient<IAmazonTranslate>());
-
         }
 
         /// <summary>
@@ -113,122 +126,6 @@ namespace LocalisationTranslator
         }
 
         /// <summary>
-        /// Loads the CSV
-        /// </summary>
-        /// <returns>'True' on successful read (may include bad data or missing fields), 'False' if the header were not validated or an internal error occured.</returns>
-        public static bool ReadLocalisation()
-        {
-            var skipRow = false;
-            var invalid = false;
-            var lastErrorLine = -1;
-            using (var reader = new StreamReader(settings.FileStructure.Path))
-            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
-            {
-
-                csv.Configuration.HasHeaderRecord = true;
-
-                // Configures a handler for missing fields
-                csv.Configuration.MissingFieldFound = (headerNames, fieldIndex, context) =>
-                {
-                    skipRow = true;
-                    App.errors.Add(new Log(Occurance.WhenReadingMissingData, context.Row, context.HeaderRecord[fieldIndex], fieldIndex));
-
-                    // Omits lines which are already added, we don't want duplicates
-                    if (lastErrorLine != context.Row)
-                    {
-                        App.erroredLines.Add(context.Row);
-                        lastErrorLine = context.Row;
-                    }
-                };
-
-                // Configures a handler for bad data
-                csv.Configuration.BadDataFound = (context) =>
-                {
-                    skipRow = true;
-                    App.errors.Add(new Log(Occurance.WhenReadingBadData, context.Row));
-
-                    // Omits lines which are already added, we don't want duplicates
-                    if (lastErrorLine != context.Row)
-                    {
-                        App.erroredLines.Add(context.Row);
-                        lastErrorLine = context.Row;
-                    }
-                };
-
-                csv.Configuration.HasHeaderRecord = true;
-                csv.Read();
-
-                // Attempts to read the header for validation
-                if (csv.ReadHeader())
-                {
-                    var fileHeaders = csv.Context.HeaderRecord;
-                    ushort i = 0;
-
-                    // If the file is empty
-                    if (fileHeaders.Length == 0)
-                    {
-                        invalid = true;
-                        App.errors.Add(new Log(Occurance.NoData));
-                    }
-                    else if (fileHeaders.Length != App.settings.FileStructure.Headers.Count)
-                    {
-                        // If the length of the headers in the files and the provided headers does not match
-                        invalid = true;
-                        if (fileHeaders.Length > App.settings.FileStructure.Headers.Count)
-                        {
-                            App.errors.Add(new Log(Occurance.WhenHeadersAreMore) { Token = App.settings.FileStructure.Path });
-                        }
-                        else
-                        {
-                            App.errors.Add(new Log(Occurance.WhenHeadersAreLess) { Token = App.settings.FileStructure.Path });
-                        }
-                    }
-
-                    // If the header do not match
-                    while (!invalid && i < fileHeaders.Length)
-                    {
-                        if (fileHeaders[i] != App.settings.FileStructure.Headers[i])
-                        {
-                            invalid = true;
-                            errors.Add(new Log(Occurance.WhenHeadersAreNotMatching, 0, fileHeaders[i], i));
-                        }
-                        i++;
-                    }
-                }
-
-                if (!invalid)
-                {
-                    // Attempts to read row by row
-                    try
-                    {
-                        while (csv.Read())
-                        {
-                            var record = csv.GetRecord<dynamic>();
-                            if (!skipRow)
-                            {
-                                App.records.Add(record);
-                            }
-                            skipRow = false;
-                            totalRecords++;
-                        }
-                        return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        // TODO: Should I add erroredLines here as well?
-                        App.errors.Add(new Log(Occurance.CSVHelperThrow) { Message = ex.Message });
-                        return false;
-                    }
-
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
-
-        /// <summary>
         /// Starts shipping request to Amazon Translate
         /// </summary>
         public static void ProcessRequests()
@@ -240,7 +137,7 @@ namespace LocalisationTranslator
                 foreach (var expando in records)
                 {
                     var translate = true;
-                    var data = (IDictionary<String, Object>)expando;
+                    var data = (IDictionary<string, object>)expando;
                     var text = (string)data[settings.FileStructure.TextHeader];
                     if (!string.IsNullOrEmpty(text))
                     {
@@ -391,87 +288,57 @@ namespace LocalisationTranslator
             return currentLine + 2 + positiveOffset;
         }
 
-        public static bool MakeComparison()
-        {
-            // TODO: Predefine size
-            App.comparisonData = new List<dynamic>();
+        /// <summary>
+        /// Produces a partial deep copy of the records that have been read by CsvHelper
+        /// The copy is partial as only the key and source text are copied over, the rest of the attributes are omitted
+        /// </summary>
+        /// <returns>
+        /// True if it successfully creates a copy, false otherwise.
+        /// </returns>
+        public static bool MakeDeepCopy()
+        {   
+            // Allocate as much space as we need + 1 space for the header
+            // Or maybe I don't need to add the header?
+            App.comparisonData = new List<dynamic>(App.records.Count + 1);
 
+            var header = new ExpandoObject();
+            header.TryAdd(settings.FileStructure.KeyHeader, settings.FileStructure.KeyHeader);
+            header.TryAdd(settings.Source, settings.Source);
+            header.TryAdd(settings.Target, settings.Target);
+            App.comparisonData.Add(header);
+    
+            foreach(var expando in App.records)
+            {
+                var data = (IDictionary<string, object>) expando;
+                var comparisonObject = new ExpandoObject();
+                comparisonObject.TryAdd(App.settings.FileStructure.KeyHeader, data[App.settings.FileStructure.KeyHeader]);
+                comparisonObject.TryAdd(App.settings.Source, data[settings.FileStructure.TextHeader]);
+                // Empty strings before 
+                comparisonObject.TryAdd(App.settings.Target, "");
+
+                App.comparisonData.Add(comparisonObject);
+            }
+
+            // TODO
             return true;
         }
 
         /// <summary>
-        /// Saves the separated records into a csv file
-        /// </summary>
-        public static bool DumpSeparatedRecords()
-        {
-            using (var writer = new StreamWriter("separated_records.csv"))
-            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
-            {
-
-                try
-                {
-                    // Picks up only the records that are separated, index is saved during translation
-                    foreach (var index in App.separatedRecords)
-                    {
-                        var record = App.records[index];
-                        csv.WriteRecord(record);
-                    }
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    return false;
-                }
-            }
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Saves the translated records
+        /// Groups the records that need to be saved separately
         /// </summary>
         /// <returns>
-        /// True is successful, false otherwise
+        /// True if the records have been dumped successfully, false otherwise
         /// </returns>
-        public static bool SaveTranslatedRecords()
+        public static bool DumpSeparatedRecords()
         {
-            using (var writer = new StreamWriter("translated.csv"))
-            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            var separatedRecords = new List<dynamic>(App.separatedRecords.Count);
+            foreach(var index in App.separatedRecords)
             {
-                try
-                {
-                    csv.WriteRecords(App.records);
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    return false;
-                }
+                var record = App.records[index];
+                separatedRecords.Add(record);
+            }
 
-            }
-        }
-        
-        /// <summary>
-        /// Saves a list of records
-        /// </summary>
-        /// <param name="filename">The filename or where to save</param>
-        /// <param name="data">The data/records to be saved</param>
-        /// <returns></returns>
-        public static bool DumpRecords(string filename, ref List<dynamic> data)
-        
-        {
-            using (var writer = new StreamWriter(filename))
-            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
-            {
-                try
-                {
-                    csv.WriteRecords(data);
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    return false;
-                }   
-            }
+            return Utils.DumpRecords(separatedRecords, App.SEPARATED_FILE);
         }
 
         /// <summary>
@@ -482,20 +349,6 @@ namespace LocalisationTranslator
             foreach (var index in App.separatedRecords)
             {
                 App.records.RemoveAt(index);
-            }
-        }
-
-        /// <summary>
-        /// Dump caught log in the order it was caught.
-        /// </summary>
-        public static void DumpLog(List<Log> appLogs, string filename)
-        {
-            using (var writer = new StreamWriter(filename))
-            {
-                foreach (var log in appLogs)
-                {
-                    writer.WriteLine(log.Message);
-                }
             }
         }
     }

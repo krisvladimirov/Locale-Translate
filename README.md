@@ -10,7 +10,11 @@
 
 ## What is supported?
 1. Finding the original line now working :heavy_check_mark:
-2. Comparison file ouput **false** by default
+2. Handle creation of new output files
+   - Saves everything under the **..\\\\output\\\\run-{number}** directory. Creates **..\\\\output** if it is missing and stores the outputs of each run in a separate directory
+   - The numbering is based on how many **..\\\\output\\\\run-{number}** there are ("\\\\run-[0-9]")
+   - Test it on Unix?
+3. Comparison file ouput **false** by default
 
 ## What is not supported yet
 1. Comparison records
