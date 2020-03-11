@@ -76,8 +76,9 @@ namespace LocalisationTranslator
         /// <summary>
         /// Whether or not to add keys without any text to the translated output.
         /// `True` would add them, `False` will print them into a separate csv file.
+        /// Default value if not provided is `True`
         /// </summary>
-        public bool AddKeyWithNoText { get; set; }
+        public bool AddKeyWithNoText { get; set; } = true;
 
         /// <summary>
         /// Instructions on how to handle strings containing ICU format or HTML
@@ -111,13 +112,15 @@ namespace LocalisationTranslator
     {
         /// <summary>
         /// Whether or not to add keys containing ICU or HTML strings
+        /// Default value if not provided is 'False'
         /// </summary>
-        public bool SeparateFile { get; set; }
+        public bool SeparateFile { get; set; } = false;
 
         /// <summary>
         /// Whether translation should be attempted on keys containing ICU or HTML strings
+        /// Default value if not provided is 'False'
         /// </summary>
-        public bool Translate { get; set; }
+        public bool Translate { get; set; } = false;
     }
     
 }

@@ -60,6 +60,8 @@ namespace LocalisationTranslator
         private static string TRANSLATED_FILE = "translated.csv";
         private static string COMPARISON_FILE = "comparison.csv";
         private static string SEPARATED_FILE = "separated_records.csv";
+        private static string FAILED_TO_TRANSLATE = "FAILED_TO_TRANSLATE";
+        private static string DO_NOT_TRANSLATE_REQUEST = "NOT_TRANSLATED_AS_REQUESTED";
 
         /// <summary>
         /// Performs all required steps based on the settings
@@ -68,6 +70,7 @@ namespace LocalisationTranslator
         {
             InitializeOptions();
             Utils.ReadLocalisation();
+            Utils.PromptUserToContinue();
 
             if (settings.Options.ComparisonFile)
             {
@@ -131,9 +134,9 @@ namespace LocalisationTranslator
         public static void ProcessRequests()
         {
             var count = 0;
-            // var translate = true;
-            using (var progress = new ProgressBar())
+            using (var progress = new ProgressBar(App.records.Count + 1))
             {
+                var failed = false;
                 foreach (var expando in records)
                 {
                     var translate = true;
@@ -166,6 +169,14 @@ namespace LocalisationTranslator
                                     // Add the index of the records that would be extracted
                                     App.separatedRecords.Add(count);
                                 }
+                                
+                                // Handle the case whenever the user has requested a comparison file and *NO* translation of
+                                // HTML or ICU containing strings
+                                if (settings.Options.ComparisonFile)
+                                {
+                                    var x = (IDictionary<string, object>) App.comparisonData[count];
+                                    x[settings.Target] = App.DO_NOT_TRANSLATE_REQUEST;
+                                }
 
                             }
                             else
@@ -193,21 +204,45 @@ namespace LocalisationTranslator
 
                         if (translate)
                         {
+
                             try
                             {
                                 // var task = translateService.TranslateText(text, settings.Source, settings.Target);
                                 // task.Wait();
                                 // var translatedText = task.Result.TranslatedText;
+
                                 // Overwrite the language code
                                 data[settings.FileStructure.LanguageHeader] = settings.Target;
+
                                 // // Overwrite the value of the key containing the text with the translated version
                                 // data[settings.FileStructure.TextHeader] = task.Result.TranslatedText;
+
+                                // TODO - Update for actual App
+                                
+                                if (settings.Options.ComparisonFile)
+                                {
+                                    // Grabs the current record that is being translated
+                                    // adds the translated text to the comparisons file
+                                    var x = (IDictionary<string, object>) App.comparisonData[count];
+                                    x[settings.Target] = "Translated";
+                                }
+
                             }
                             catch (Exception ex)
                             {
+                                failed = true;
                                 var line = FindOriginalLine(count);
                                 App.errors.Add(new Log(Occurance.WhenTranslating, line, ex.Message));
+
+                                if (settings.Options.ComparisonFile)
+                                {
+                                    // Grabs the current record that is being translated
+                                    // adds the translated text to the comparisons file
+                                    var x = (IDictionary<string, object>) App.comparisonData[count];
+                                    x[settings.Target] = App.FAILED_TO_TRANSLATE;
+                                }
                             }
+
                         }
                     }
 
@@ -221,7 +256,8 @@ namespace LocalisationTranslator
         /// Attempts to locate the original line of a record that has either triggered an error or has been skipped
         /// </summary>
         /// <param name="currentLine">The line in the already read localisation, excluding errored lines, i.e. records, 
-        /// at which an error while translating has occured or the line was skipped while translating due to validation</param>
+        /// at which an error while translating has occured or the line was skipped while translating due to validation
+        /// </param>
         /// <returns>
         /// The original line at which the error or skipped line was placed before reading the localisation file.
         /// </returns>
@@ -236,6 +272,8 @@ namespace LocalisationTranslator
 
             // Represent how much needs to be added to a line to map to its original placement in the CSV file
             var positiveOffset = 0;
+
+            // Whenever no errors have been recorded while reading, just return current line + 2
             if (App.erroredLines.Count == 0)
             {
                 return currentLine + 2;
@@ -250,7 +288,7 @@ namespace LocalisationTranslator
             }
 
             // .Last() should never throw an error as we are checking that erroredLines has elements in it in the previous line
-            // Handles the case when the currentLine is bigger than the last recorded error,
+            // Handles the case when the currentLine is bigger than or equal to the last recorded error,
             // therefore the original line will always be the currentLine + 2 + the total amount of errors
             if (App.erroredLines.Last() <= currentLine + 2)
             {
@@ -291,6 +329,7 @@ namespace LocalisationTranslator
         /// <summary>
         /// Produces a partial deep copy of the records that have been read by CsvHelper
         /// The copy is partial as only the key and source text are copied over, the rest of the attributes are omitted
+        /// NOTE: A possibly bottleneck, couldn't think of a better way to make a deep copy only of certain data in a dynamic object
         /// </summary>
         /// <returns>
         /// True if it successfully creates a copy, false otherwise.
@@ -313,7 +352,7 @@ namespace LocalisationTranslator
                 var comparisonObject = new ExpandoObject();
                 comparisonObject.TryAdd(App.settings.FileStructure.KeyHeader, data[App.settings.FileStructure.KeyHeader]);
                 comparisonObject.TryAdd(App.settings.Source, data[settings.FileStructure.TextHeader]);
-                // Empty strings before 
+                // Placeholder for the translation
                 comparisonObject.TryAdd(App.settings.Target, "");
 
                 App.comparisonData.Add(comparisonObject);

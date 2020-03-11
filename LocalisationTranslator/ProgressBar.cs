@@ -27,7 +27,7 @@ namespace LocalisationTranslator
         public int resetCounter = 0;
 
         // The total amount of operations that will be performed
-        private ushort maxOperations = 0;
+        private int maxOperations = 0;
 
         public ProgressBar()
         {
@@ -46,7 +46,7 @@ namespace LocalisationTranslator
         /// Initializes a Progress bar with known maxinum number of operations, i.e. ticks
         /// </summary>
         /// <param name="maxOperations">The maximum number of operations that will be performed</param>
-        public ProgressBar(ushort maxOperations){
+        public ProgressBar(int maxOperations){
             this.maxOperations = maxOperations;
 
             timer = new Timer(TimerHandler);

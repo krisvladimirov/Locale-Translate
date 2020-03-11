@@ -1,4 +1,5 @@
-﻿namespace LocalisationTranslator
+﻿using System;
+namespace LocalisationTranslator
 {
     /// <summary>
     /// 
@@ -9,6 +10,10 @@
         {
             App.Process();
 
+            // Console.Write("Ae bai hui");
+            // var s = new string('\b', 10);
+            // Console.Write(s);
+            // Console.Write("Ae urud smotan");
             //outcome = Program.ReadLocalisation();
             //if (outcome)
             //{

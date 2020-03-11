@@ -17,10 +17,82 @@ namespace LocalisationTranslator
 
         // The sub-directory in which to save the outputs
         private static string whereToSave;
+
+        // The estimated price
+        // NOTE: It is estimated as no HTML/ICU data check is performed.
+        private static string estimatedPriceMessage;
+
+        // The price per character $15.00 per million characters
+        private readonly static double pricePerCharacter = 0.000015;
+
+        //
+        private readonly static double roundingThreshold = 0.01;
+        private readonly static string YOUR_CHOICE = "Your choice: ";
+        private readonly static string YES = "yes";
+        private readonly static string NO = "no";
+
+        //
+        private static bool proceed = true;
+
         /// <summary>
-        /// 
+        /// Gives the user the estimated price of the translation. Promps the user to either proceed or cancel the translation.
         /// </summary>
-        /// <returns></returns>
+        public static void PromptUserToContinue()
+        {
+            Console.WriteLine($"{Utils.estimatedPriceMessage}");
+            Console.WriteLine("Would you like to proceed with the translation step, please type [yes|Yes|YES], otherwise [no|No|NO]?");
+
+            var madeChoice = false;
+            while (!madeChoice)
+            {   
+                Console.Write($"{Utils.YOUR_CHOICE}");
+                var choice = Console.ReadLine();
+                if (string.IsNullOrEmpty(choice))
+                {
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    ClearCurrentConsoleLine();
+                }
+                else if (Utils.YES.Equals(choice, StringComparison.OrdinalIgnoreCase))
+                {
+                    madeChoice = true;
+                }
+                else if (Utils.NO.Equals(choice, StringComparison.OrdinalIgnoreCase))
+                {
+                    madeChoice = true;
+                    Utils.proceed = false;
+                }
+                else
+                {
+                    Console.SetCursorPosition(0, Console.CursorTop - 1);
+                    ClearCurrentConsoleLine();
+                }
+            }
+
+            // Exit the App
+            if (!Utils.proceed)
+            {
+                Environment.Exit(0);
+            }
+        }
+        
+        /// <summary>
+        /// I don't like this solution at all, but couldn't find anything and my Console.Write(new string('\b', COUNT)) was not working damit
+        /// </summary>
+        public static void ClearCurrentConsoleLine()
+        {
+            int currentLineCursor = Console.CursorTop;
+            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.Write(new string(' ', Console.WindowWidth)); 
+            Console.SetCursorPosition(0, currentLineCursor);
+        }
+
+        /// <summary>
+        /// Checks if the output directory is present, if it is not the output directory is created. Next the sub-directory associated with
+        /// the translation run is produced. It will hold the outputs of the current run
+        /// If the ouput directory exist only the run sub-directory is created
+        /// </summary>
+        /// <returns>
+        /// </returns>
         public static bool CheckOutputPath()
         {
             // Check if output directory exists
@@ -58,6 +130,24 @@ namespace LocalisationTranslator
             return true;
         }
 
+
+        /// <summary>
+        /// Estimates the price of the translation task or in other words, rounds up the price correctly
+        /// </summary>
+        /// <param name="totalCharacters">The total character in the input file</param>
+        private static void EstimatePrice(int totalCharacters)
+        {
+            var price = totalCharacters * Utils.pricePerCharacter;
+            if (Utils.roundingThreshold > price)
+            {
+                Utils.estimatedPriceMessage = $"The estimated price is less than ${Utils.roundingThreshold} (${price})";
+            }
+            else
+            {
+                Utils.estimatedPriceMessage = $"The estimated price is ${Math.Round(price, 2)}";
+            }
+        }
+
         /// <summary>
         /// Loads the CSV
         /// </summary>
@@ -69,7 +159,9 @@ namespace LocalisationTranslator
             var skipRow = false;
             var invalid = false;
             var lastErrorLine = -1;
-             using (var reader = new StreamReader(App.settings.FileStructure.Path))
+            // Keeps an estimate of how many characters will be sent over to Amazon Translate
+            int totalCharacters = 0;
+            using (var reader = new StreamReader(App.settings.FileStructure.Path))
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
 
@@ -155,10 +247,15 @@ namespace LocalisationTranslator
                             if (!skipRow)
                             {
                                 App.records.Add(record);
+                                var data = (IDictionary<string, object>) record;
+                                totalCharacters += ((string) data[App.settings.FileStructure.TextHeader]).Length;
                             }
                             skipRow = false;
                             App.totalRecords++;
                         }
+
+                        Utils.EstimatePrice(totalCharacters);
+
                         return true;
                     }
                     catch (Exception ex)
