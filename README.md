@@ -11,9 +11,11 @@ Because I needed a simple and relatively fast way to translate a large set of lo
 ## What about future features?
 
 
+## Execution steps?
+
 ## How to use it
-First and foremost the app needs to be configured inside ```./appsettings.json```.
-Example configuration:
+First and foremost the app needs to be configured inside ```./appsettings.json```.</br>
+**Example configuration:**
 ```
 {
   "Settings": {
@@ -44,18 +46,40 @@ Example configuration:
   }
 }
 ```
+**Example CSV input file:**
+```
+key,context,language,text
+Welcome,,en,Welcome to the app
+Welcome.FacebookUser,,en,Welcome to the App because you joined from FB you get free credits
+Tutorial.CreateEvent,,en,To create <strong>a given<strong> provide the following proterties
+Tutorial.JoinEvent,,en,To join an event click here
+Tutorial.SearchEvent,,en,To search for an event click here
+Tutorial.ShareEvent,,en,To share an event click here
+Tutorial.BookEvent,,en,To book an event do this
+Notification.Pending.JoinRequest,,en,You have {0} users asking to join
+Notification.ReadyCheck.Accept,,en,<strong>Accept<strong>
+Notification.ReadyCheck.Decline,,en,<strong>Decline<strong>
+```
+
+**Example of expected output files:**
+
+
 #### Attributes and their functionality
 - ```"Source:"``` - Specifies the source language
+  - Amazon Translate can determine the source of the language but it advisible to provide the language code
 - ```"Target:"``` - Specifies the target language
 - ```"Path:"``` - The relative path to the CSV file
 - ```"Headers:"``` - The headers of the CSV file
 - ```"TextHeader:"``` - The header at which the text that needs translation is
 - ```"KeyHeader:"``` - The header at which the localisation string's key is
 - ```"LanguageHeader:"``` - The header at which the language code is
-- ```"AddKeyWithNoText:"``` - Whether or not to add a key (i.e. whole record) if text field is empty
+- ```"AddKeyWithNoText:"``` - Whether or not to add a key in the translated output (i.e. whole record) if text field is empty
+  - i.e. ```Tutorial.ShareEvent,,en,``` has no text field (check table for default values)
 - ```"SeparateFile:"``` - Whether or not to add keys containing ICU or HTML strings to the main translated output
-- ```"Translate:``` - Whether translation should be attempted on keys containing ICU or HTML strings
-- ```"ComparisonFile:"``` - Whether or not to produce a comparison file
+- ```"Translate:"``` - Whether translation should be attempted on keys containing ICU or HTML strings
+- ```"ComparisonFile:"``` - Whether or not to produce a comparison file, with structure:
+  - ```key,en(the source lang),ja(target lang)```
+  - **The translated output file will still be created**
 
 | Attribute          |     Necessary      | Default value |
 | ---                |        :---:       |      :---:    |
@@ -66,18 +90,26 @@ Example configuration:
 | Text Header        | :heavy_check_mark: |      N/A      |
 | KeyHeader          | :heavy_check_mark: |      N/A      |
 | LanguageHeader     | :heavy_check_mark: |      N/A      |
-| AddKeyWithNoText   |                    |     false     |
+| AddKeyWithNoText   |                    |     true      |
 | SeparateFile       |                    |     false     |
 | Translate          |                    |     false     |
 | Comparison file    |                    |     false     |
 
-## What does the CSV validate?
-1. Check if the headers in the input file are matching the provided headers in AppSettings
-   1. On the first header that does not match an error is logged
-2. If there are less header an error is logged process exits
-3. If there are more header an error is logged process exits
-4. If there are not errors the log is simply not created.
-5. If there is missing data for header an error is logged process continues
+## What validation is in place?
+### Header validation
+The headers of the provided CSV file will be checked if they are matching the provided headers in ```./appsettings.json```. Check (3) is case sensitive. Rules when specifying the headers attribute:
+1. Check if the ```"Headers:"``` attribute is **NOT** empty.  
+2. Check if the number of headers in the input file matches the number of headers in ```./appsettings.json```.
+3. Check if the headers in the input file are matching the provided headers in ```./appsettings.json```. The app is case sensitive.
+
+Whenever a single rule is broken, the app will not proceed to cost estimation step.
+
+### Missing field is found?
+
+### Bad data is found?
+As described in <a href="https://joshclose.github.io/CsvHelper/api/CsvHelper.Configuration/Configuration/">CsvHelper.Configuration</a> bad data is considered a field that *"contains a quote and that field is not quoted (escaped)"*.
+
+
 
 ## What is supported?
 1. Finding the original line now working :heavy_check_mark:

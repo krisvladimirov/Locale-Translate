@@ -1,11 +1,11 @@
 key,context,language,text
-Welcome,,enWelcome to the app
-Welcome.FacebookUser,,enWelcome to the App because you joined from FB you get free credits
-Tutorial.CreateEvent,,enTo create <strong>a given<strong> provide the following proterties
-Tutorial.JoinEventen,,enTo join an event click here
+Welcome,,en,Welcome to the app
+Welcome.FacebookUser,,en,Welcome to the App because you joined from FB you get free credits
+Tutorial.CreateEvent,,en,To create <strong>a given<strong> provide the following proterties
+Tutorial.JoinEvent,,en,To join an event click here
 Tutorial.SearchEvent,,en,To search for an event click here
 Tutorial.ShareEvent,,en,To share an event click here
 Tutorial.BookEvent,,en,To book an event do this
 Notification.Pending.JoinRequest,,en,You have {0} users asking to join
 Notification.ReadyCheck.Accept,,en,<strong>Accept<strong>
-Notification.ReadyCheck.Decline,,en<strong>Decline<strong>
+Notification.ReadyCheck.Decline,,en,<strong>Decline<strong>
