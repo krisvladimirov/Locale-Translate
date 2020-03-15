@@ -2,6 +2,7 @@
 using Amazon.Translate;
 using Microsoft.Extensions.Configuration;
 using System;
+using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using System.Dynamic;
@@ -133,6 +134,44 @@ namespace LocalisationTranslator
             App.awsOptions = App.config.GetAWSOptions();
             App.settings = App.config.GetSection(SETTINGS_SECTION).Get<AppSettings>();
             App.translateService = new TranslateService(awsOptions.CreateServiceClient<IAmazonTranslate>());
+
+            // Ensure all necessary settings are provided
+            ValidateSettings();
+            
+        }
+
+        /// <summary>
+        /// Validates that all the necessary attributes are provided, if not the application is terminated and the user is shown a list of what needs to be included.
+        /// </summary>
+        public static void ValidateSettings()
+        {
+            List<string> missingProperties = new List<string>(10);
+            if (App.settings == null)
+            {
+                Console.WriteLine("No 'Settings' section was located in 'appsettings.json' or it is empty, terminating app!");
+                Environment.Exit(0);
+            }
+
+            if (App.settings.FileStructure == null)
+            {
+                Console.WriteLine("No 'FileStructure' sections was located under section 'Settings' in 'appsettings.json or it is empty, terminating app!");
+                Environment.Exit(0);
+            }
+
+            if (string.IsNullOrEmpty(App.settings.Target)) missingProperties.Add(nameof(App.settings.Target));
+            if (string.IsNullOrEmpty(App.settings.FileStructure.Path)) missingProperties.Add(nameof(App.settings.FileStructure.Path));
+            if (App.settings.FileStructure.Headers == null) missingProperties.Add(nameof(App.settings.FileStructure.Headers));
+            if (string.IsNullOrEmpty(App.settings.FileStructure.TextHeader)) missingProperties.Add(nameof(App.settings.FileStructure.TextHeader));
+            if (string.IsNullOrEmpty(App.settings.FileStructure.KeyHeader)) missingProperties.Add(nameof(App.settings.FileStructure.KeyHeader));
+            if (string.IsNullOrEmpty(App.settings.FileStructure.LanguageHeader)) missingProperties.Add(nameof(App.settings.FileStructure.LanguageHeader));
+
+            
+            if (missingProperties.Count > 0)
+            {
+                var message = $"The following properties need to be provided: [{string.Join(",", missingProperties)}], terminating app!";
+                Console.WriteLine(message);
+                Environment.Exit(0);
+            }
         }
 
         /// <summary>

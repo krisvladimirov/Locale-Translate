@@ -101,7 +101,6 @@ namespace LocalisationTranslator
         /// Whether or not to produce a comparison file
         /// False by default
         /// </summary>
-        /// <value></value>
         public bool ComparisonFile { get; set; } = false;
     }
 
