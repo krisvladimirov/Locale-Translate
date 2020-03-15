@@ -55,6 +55,7 @@ namespace LocalisationTranslator
 
         // The Settings section in the AppSettings.json
         private static string SETTINGS_SECTION = "Settings";
+        private readonly static string ERROR_LOG_FILE = "error_log.txt";
         private static string ICU_HTML_LOG_FILE = "icu_html.txt";
         private static string TRANSLATED_FILE = "translated.csv";
         private static string COMPARISON_FILE = "comparison.csv";
@@ -72,13 +73,13 @@ namespace LocalisationTranslator
             if (!Utils.ValidateFile())
             {
                 Console.WriteLine("File could not be read, check output log");
-                Utils.ExitApp(0);
+                Utils.ExitApp(0, App.ERROR_LOG_FILE);
             }
             
             if (!Utils.ReadLocalisation())
             {
                 Console.WriteLine("The app terminated while reading the input file, check output log");
-                Utils.ExitApp(0);
+                Utils.ExitApp(0, App.ERROR_LOG_FILE);
             }
 
             Utils.PromptUserToContinue();
@@ -110,8 +111,15 @@ namespace LocalisationTranslator
                 ClearSeparatedRecords();
             }
 
-            Utils.DumpRecords(App.records, App.TRANSLATED_FILE);
+            if (!Utils.DumpRecords(App.records, App.TRANSLATED_FILE))
+            {
+                Console.WriteLine("The app terminated while dumping the translated records, check output log");
+                Utils.ExitApp(0, App.ERROR_LOG_FILE);
+            }
 
+            // Finally dump all collected error logs
+            Utils.DumpLog(App.errors, App.ERROR_LOG_FILE);
+            
             return true;
         }
 
@@ -119,7 +127,8 @@ namespace LocalisationTranslator
         /// Initializes the application and its services
         /// </summary>
         public static void InitializeOptions()
-        {
+        {   
+            // TODO - Check AWS credentials
             App.config = GetConfiguration();
             App.awsOptions = App.config.GetAWSOptions();
             App.settings = App.config.GetSection(SETTINGS_SECTION).Get<AppSettings>();
@@ -147,7 +156,7 @@ namespace LocalisationTranslator
             var count = 0;
             using (var progress = new ProgressBar(App.records.Count + 1))
             {
-                var failed = false;
+                // var failed = false;
                 foreach (var expando in records)
                 {
                     var translate = true;
@@ -241,7 +250,6 @@ namespace LocalisationTranslator
                             }
                             catch (Exception ex)
                             {
-                                failed = true;
                                 var line = FindOriginalLine(count);
                                 App.errors.Add(new Log(Occurance.WhenTranslating, line, ex.Message));
 
@@ -342,10 +350,7 @@ namespace LocalisationTranslator
         /// The copy is partial as only the key and source text are copied over, the rest of the attributes are omitted
         /// NOTE: A possibly bottleneck, couldn't think of a better way to make a deep copy only of certain data in a dynamic object
         /// </summary>
-        /// <returns>
-        /// True if it successfully creates a copy, false otherwise.
-        /// </returns>
-        public static bool MakeDeepCopy()
+        public static void MakeDeepCopy()
         {   
             // Allocate as much space as we need + 1 space for the header
             // Or maybe I don't need to add the header?
@@ -363,14 +368,11 @@ namespace LocalisationTranslator
                 var comparisonObject = new ExpandoObject();
                 comparisonObject.TryAdd(App.settings.FileStructure.KeyHeader, data[App.settings.FileStructure.KeyHeader]);
                 comparisonObject.TryAdd(App.settings.Source, data[settings.FileStructure.TextHeader]);
-                // Placeholder for the translation
+                // TODO - Temporary placeholder for the translation
                 comparisonObject.TryAdd(App.settings.Target, "");
 
                 App.comparisonData.Add(comparisonObject);
             }
-
-            // TODO
-            return true;
         }
 
         /// <summary>
@@ -396,6 +398,20 @@ namespace LocalisationTranslator
         /// </summary>
         public static void ClearSeparatedRecords()
         {
+            // Adjust indices
+            // As records in App.records are deleted based on the indices stored in App.separatedRecords
+            // App.records shrinks, thus losing the original index mapping we want
+            // To fix, we iterate over App.separatedRecords to correctly match indexes after App.records dynamically shrinks
+            // App.separatedRecords = [2, 4, 6, 8]
+            // App.records = [r0, r1, r2, r3, r4, r5, r6 ,r7 ,r8]
+            // After deleting the records at index 2, => App.records = [r0, r1, r3, r4, r5, r6 ,r7 ,r8]
+            // If indices in App.separatedRecords are not adjusted index 4 will map to 'r5' instead of 'r4'
+            // You get the point :)
+            for (int i = 0; i < App.separatedRecords.Count; i++)
+            {
+                App.separatedRecords[i] -= i; 
+            }
+
             foreach (var index in App.separatedRecords)
             {
                 App.records.RemoveAt(index);

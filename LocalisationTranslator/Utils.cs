@@ -15,13 +15,11 @@ namespace LocalisationTranslator
         // The output directory of the App
         private static string outputDir = "..\\output";
 
-        // Whether or not the output path where files will be saved is checked
-        private static bool isOutputPatchChecked = false;
-
+        // The only supported input file format
         private readonly static string CSV_EXTENSION = ".csv"; 
 
         // The sub-directory in which to save the outputs
-        private static string whereToSave;
+        private static string whereToSave = null;
 
         // The estimated price
         // NOTE: It is estimated as no HTML/ICU data check is performed.
@@ -35,20 +33,15 @@ namespace LocalisationTranslator
         private readonly static string YOUR_CHOICE = "Your choice: ";
         private readonly static string YES = "yes";
         private readonly static string NO = "no";
-        private readonly static string ERROR_LOG_FILE = "error_log.txt";
-
-
-        //
-        private static bool proceed = true;
 
         /// <summary>
         /// Exits the application if a critical error has occured
         /// </summary>
         /// <param name="code">The exit code</param>
-        public static void ExitApp(int code)
+        public static void ExitApp(int code, string filename)
         {
             Utils.CheckOutputPath();
-            Utils.DumpLog(App.errors, Utils.ERROR_LOG_FILE);
+            Utils.DumpLog(App.errors, filename);
             Environment.Exit(code);
         }
 
@@ -61,6 +54,7 @@ namespace LocalisationTranslator
             Console.WriteLine("Would you like to proceed with the translation step, please type [yes|Yes|YES], otherwise [no|No|NO]?");
 
             var madeChoice = false;
+            var proceed = true;
             while (!madeChoice)
             {   
                 Console.Write($"{Utils.YOUR_CHOICE}");
@@ -77,7 +71,7 @@ namespace LocalisationTranslator
                 else if (Utils.NO.Equals(choice, StringComparison.OrdinalIgnoreCase))
                 {
                     madeChoice = true;
-                    Utils.proceed = false;
+                    proceed = false;
                 }
                 else
                 {
@@ -87,7 +81,7 @@ namespace LocalisationTranslator
             }
 
             // Exit the App
-            if (!Utils.proceed)
+            if (!proceed)
             {
                 Environment.Exit(0);
             }
@@ -96,7 +90,7 @@ namespace LocalisationTranslator
         /// <summary>
         /// I don't like this solution at all, but couldn't find anything and my Console.Write(new string('\b', COUNT)) was not working damit
         /// </summary>
-        public static void ClearCurrentConsoleLine()
+        private static void ClearCurrentConsoleLine()
         {
             int currentLineCursor = Console.CursorTop;
             Console.SetCursorPosition(0, Console.CursorTop);
@@ -124,7 +118,7 @@ namespace LocalisationTranslator
                 Directory.CreateDirectory(outputDir);
                 // Creates the sub-directory for each run
                 Utils.whereToSave = outputDir + "\\run-1";
-                Directory.CreateDirectory(whereToSave);
+                Directory.CreateDirectory(Utils.whereToSave);
             }
             else
             {
@@ -141,7 +135,7 @@ namespace LocalisationTranslator
                     }
                 }
                 Utils.whereToSave = Utils.outputDir + $"\\run-{numberOfRuns + 1}";
-                Directory.CreateDirectory(whereToSave);
+                Directory.CreateDirectory(Utils.whereToSave);
 
             }
 
@@ -153,7 +147,7 @@ namespace LocalisationTranslator
         /// Estimates the price of the translation task or in other words, rounds up the price correctly
         /// </summary>
         /// <param name="totalCharacters">The total character in the input file</param>
-        private static void EstimatePrice(int totalCharacters)
+        public static void EstimatePrice(int totalCharacters)
         {
             var price = totalCharacters * Utils.pricePerCharacter;
             if (Utils.roundingThreshold > price)
@@ -312,6 +306,7 @@ namespace LocalisationTranslator
                             {
                                 App.records.Add(record);
                                 var data = (IDictionary<string, object>) record;
+                                // For every read record, adds up to the total characters that need translating, for pice estimation
                                 totalCharacters += ((string) data[App.settings.FileStructure.TextHeader]).Length;
                             }
                             skipRow = false;
@@ -324,7 +319,6 @@ namespace LocalisationTranslator
                     }
                     catch (Exception ex)
                     {
-                        // TODO: Should I add erroredLines here as well?
                         App.errors.Add(new Log(Occurance.CSVHelperThrow) { Message = ex.Message });
                         return false;
                     }
@@ -355,8 +349,9 @@ namespace LocalisationTranslator
                     csv.WriteRecords(data);
                     return true;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    App.errors.Add(new Log(Occurance.CSVHelperThrow) {Message = ex.Message});
                     return false;
                 }   
             }
@@ -382,8 +377,9 @@ namespace LocalisationTranslator
                     }
                     return true;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    App.errors.Add(new Log(Occurance.WhenDumpingLog) {Message = ex.Message});
                     return false;
                 }
             }

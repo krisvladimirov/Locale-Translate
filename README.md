@@ -116,7 +116,11 @@ The CSV parser would ensure that the correct number of fields, corresponding to 
 ### Bad data is found?
 As described in <a href="https://joshclose.github.io/CsvHelper/api/CsvHelper.Configuration/Configuration/">CsvHelper.Configuration</a> bad data is considered a field that *"contains a quote and that field is not quoted (escaped)"*. In the case of bad data the parser will save the line at which an exception was raised and append the information to the output log. The line will then be excluded from further processing and the parser will continue reading the rest of the rows if any.
 
+### Missing file or wrong file extension?
+The app will terminate and produce an output log whenever a provided input file doesn't exist or has the wrong extension.
 
+### AWS Credential checking? (TODO)
+**TODO**
 
 ## What is supported?
 1. Finding the original line now working :heavy_check_mark:

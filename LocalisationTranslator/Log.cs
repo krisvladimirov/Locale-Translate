@@ -105,7 +105,7 @@ namespace LocalisationTranslator
                     break;
 
                 case Occurance.WhenReadingMissingData:
-                    log.Message = $"At line: {log.Line}, no value was found for '{log.Token}'";
+                    log.Message = $"At line: {log.Line}, no value was found for '{log.Token}'.";
                     break;
 
                 case Occurance.WhenReadingBadData:
@@ -125,7 +125,11 @@ namespace LocalisationTranslator
                     break;
 
                 case Occurance.CSVHelperThrow:
-                    log.Message = "";
+                    // No formatting required, use exception message
+                    break;
+
+                case Occurance.WhenDumpingLog:
+                    // No formatting required, use exception message
                     break;
 
                 case Occurance.NotTranslatedSeparateFile:
@@ -175,11 +179,12 @@ namespace LocalisationTranslator
         WhenValidating = 7,
         WhenShipping = 8,
         CSVHelperThrow = 9,
-        NotTranslatedSeparateFile = 10,
-        NotTranslatedSameFile = 11,
-        TranslatedSeparateFile = 12,
-        TranslatedSameFile = 13,
-        FileDoesNotExist = 14,
-        FileExtensionIsWrong = 15
+        WhenDumpingLog = 10,
+        NotTranslatedSeparateFile = 11,
+        NotTranslatedSameFile = 12,
+        TranslatedSeparateFile = 13,
+        TranslatedSameFile = 14,
+        FileDoesNotExist = 15,
+        FileExtensionIsWrong = 16
     }
 }
