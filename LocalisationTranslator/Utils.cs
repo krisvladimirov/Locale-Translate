@@ -15,6 +15,11 @@ namespace LocalisationTranslator
         // The output directory of the App
         private static string outputDir = "..\\output";
 
+        // Whether or not the output path where files will be saved is checked
+        private static bool isOutputPatchChecked = false;
+
+        private readonly static string CSV_EXTENSION = ".csv"; 
+
         // The sub-directory in which to save the outputs
         private static string whereToSave;
 
@@ -30,9 +35,22 @@ namespace LocalisationTranslator
         private readonly static string YOUR_CHOICE = "Your choice: ";
         private readonly static string YES = "yes";
         private readonly static string NO = "no";
+        private readonly static string ERROR_LOG_FILE = "error_log.txt";
+
 
         //
         private static bool proceed = true;
+
+        /// <summary>
+        /// Exits the application if a critical error has occured
+        /// </summary>
+        /// <param name="code">The exit code</param>
+        public static void ExitApp(int code)
+        {
+            Utils.CheckOutputPath();
+            Utils.DumpLog(App.errors, Utils.ERROR_LOG_FILE);
+            Environment.Exit(code);
+        }
 
         /// <summary>
         /// Gives the user the estimated price of the translation. Promps the user to either proceed or cancel the translation.
@@ -146,6 +164,52 @@ namespace LocalisationTranslator
             {
                 Utils.estimatedPriceMessage = $"The estimated price is ${Math.Round(price, 2)}";
             }
+        }
+        
+        /// <summary>
+        /// Checks if the provided input file exits
+        /// </summary>
+        /// <returns>
+        /// True whenever the provided input file exists, false otherwise
+        /// </returns>
+        private static bool FileExists()
+        {
+            return File.Exists(App.settings.FileStructure.Path);
+        }
+
+        /// <summary>
+        /// Checks if the provided input file has the correct extension
+        /// </summary>
+        /// <returns>
+        /// True whenever the provided input file has the correct extension, false otherwise
+        /// </returns>
+        private static bool FileHasCorrectExtension()
+        {
+            var ext = Path.GetExtension(App.settings.FileStructure.Path);
+            return ext.Equals(Utils.CSV_EXTENSION);
+        }
+
+        /// <summary>
+        /// Validates that the provided input file exists and has the correct '.csv' extension
+        /// </summary>
+        /// <returns>
+        /// True if the provided input file is valid, false otherwise
+        /// </returns>
+        public static bool ValidateFile()
+        {
+            if (!Utils.FileExists())
+            {
+                App.errors.Add(new Log(Occurance.FileDoesNotExist, -1, App.settings.FileStructure.Path));
+                return false;
+            }
+
+            if (!Utils.FileHasCorrectExtension())
+            {
+                App.errors.Add(new Log(Occurance.FileExtensionIsWrong, -1 , App.settings.FileStructure.Path));
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>

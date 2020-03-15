@@ -55,7 +55,6 @@ namespace LocalisationTranslator
 
         // The Settings section in the AppSettings.json
         private static string SETTINGS_SECTION = "Settings";
-        private static string ERROR_LOG_FILE = "error_log.txt";
         private static string ICU_HTML_LOG_FILE = "icu_html.txt";
         private static string TRANSLATED_FILE = "translated.csv";
         private static string COMPARISON_FILE = "comparison.csv";
@@ -69,7 +68,19 @@ namespace LocalisationTranslator
         public static bool Process()
         {
             InitializeOptions();
-            Utils.ReadLocalisation();
+
+            if (!Utils.ValidateFile())
+            {
+                Console.WriteLine("File could not be read, check output log");
+                Utils.ExitApp(0);
+            }
+            
+            if (!Utils.ReadLocalisation())
+            {
+                Console.WriteLine("The app terminated while reading the input file, check output log");
+                Utils.ExitApp(0);
+            }
+
             Utils.PromptUserToContinue();
 
             if (settings.Options.ComparisonFile)

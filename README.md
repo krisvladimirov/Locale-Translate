@@ -9,7 +9,13 @@ Because I needed a simple and relatively fast way to translate a large set of lo
 ## What features does it support?
 
 ## What about future features?
+Add support for AWS credential checking and determening whether a user has Amazon Translate's service enabled.
 
+Add support for adding custom terminologies.
+
+Add support for multi language translation at the same time.
+
+Currently the application is sending 1 request at a time and awaiting a response. This isn't the most eddifient way of handling large files. A potential solution would be to multi-thread (send multiple requests at the same time and await them) the operations based on the hardware capabilities/size of file. Amazon Translate supports batch translate operation but this will not be considered as it out of the scope of this application as the data will need to in **Amazon S3** and referenced from there. 
 
 ## Execution steps?
 
@@ -105,9 +111,10 @@ The headers of the provided CSV file will be checked if they are matching the pr
 Whenever a single rule is broken, the app will not proceed to cost estimation step.
 
 ### Missing field is found?
+The CSV parser would ensure that the correct number of fields, corresponding to the specifield header values in the first row, are supplied. In the case of missing data, the parser will save the line at which an exception was raised and append the information to the output log. The line will then be excluded from further processing and the parser will continue reading the rest of the rows if any.
 
 ### Bad data is found?
-As described in <a href="https://joshclose.github.io/CsvHelper/api/CsvHelper.Configuration/Configuration/">CsvHelper.Configuration</a> bad data is considered a field that *"contains a quote and that field is not quoted (escaped)"*.
+As described in <a href="https://joshclose.github.io/CsvHelper/api/CsvHelper.Configuration/Configuration/">CsvHelper.Configuration</a> bad data is considered a field that *"contains a quote and that field is not quoted (escaped)"*. In the case of bad data the parser will save the line at which an exception was raised and append the information to the output log. The line will then be excluded from further processing and the parser will continue reading the rest of the rows if any.
 
 
 

@@ -139,8 +139,17 @@ namespace LocalisationTranslator
                 case Occurance.TranslatedSeparateFile:
                     log.Message = $"The localisation string with key '{log.Token}' with original line ({log.Line}) was processed as requested, and was saved on a separate file as requested.";
                     break;
+
                 case Occurance.TranslatedSameFile:
                     log.Message = $"The localisation string with key '{log.Token}' with original line ({log.Line}) was processed as requested, and was saved on the translated file as requested.";
+                    break;
+
+                case Occurance.FileDoesNotExist:
+                    log.Message = $"The file 'Path: \"{log.Token}\"' provided in 'appsettings.json' does not exists.";
+                    break;
+
+                case Occurance.FileExtensionIsWrong:
+                    log.Message = $"The file 'Path: \"{log.Token}\"' provided in 'appsettings.json' does not have a valid '.csv' extension.";
                     break;
 
                 default:
@@ -169,6 +178,8 @@ namespace LocalisationTranslator
         NotTranslatedSeparateFile = 10,
         NotTranslatedSameFile = 11,
         TranslatedSeparateFile = 12,
-        TranslatedSameFile = 13
+        TranslatedSameFile = 13,
+        FileDoesNotExist = 14,
+        FileExtensionIsWrong = 15
     }
 }
