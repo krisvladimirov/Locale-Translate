@@ -304,11 +304,28 @@ namespace LocalisationTranslator
                             var record = csv.GetRecord<dynamic>();
                             if (!skipRow)
                             {
-                                App.records.Add(record);
                                 var data = (IDictionary<string, object>) record;
+                                if (App.settings.Options.Validation.AddKeyWithNoText)
+                                {
+                                    App.records.Add(record);
+                                } 
+                                else
+                                {
+                                    if (!string.IsNullOrEmpty((string) data[App.settings.FileStructure.TextHeader]))
+                                    {
+                                        App.records.Add(record);
+                                    } 
+                                    else
+                                    {
+                                        App.recordsWithoutText.Add(record);
+                                        App.erroredLines.Add(csv.Context.Row);
+                                    }
+                                    
+                                }
                                 // For every read record, adds up to the total characters that need translating, for pice estimation
                                 totalCharacters += ((string) data[App.settings.FileStructure.TextHeader]).Length;
                             }
+                            
                             skipRow = false;
                             App.totalRecords++;
                         }

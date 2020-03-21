@@ -48,6 +48,9 @@ namespace LocalisationTranslator
         // The lines at which errors were encountered while reading from the csv file
         public readonly static List<int> erroredLines = new List<int>();
 
+        // Records that do not contain a value for their text property
+        public readonly static List<dynamic> recordsWithoutText = new List<dynamic>();
+
         // The total records including bad ones
         public static short totalRecords = 0;
 
@@ -61,6 +64,7 @@ namespace LocalisationTranslator
         private static string TRANSLATED_FILE = "translated.csv";
         private static string COMPARISON_FILE = "comparison.csv";
         private static string SEPARATED_FILE = "separated_records.csv";
+        private static string RECORDS_WITH_EMPTY_TEXT_PROPERTY = "records_without_text.csv";
         private static string FAILED_TO_TRANSLATE = "FAILED_TO_TRANSLATE";
         private static string DO_NOT_TRANSLATE_REQUEST = "NOT_TRANSLATED_AS_REQUESTED";
 
@@ -83,7 +87,7 @@ namespace LocalisationTranslator
                 Utils.ExitApp(0, App.ERROR_LOG_FILE);
             }
 
-            Utils.PromptUserToContinue();
+            //Utils.PromptUserToContinue();
 
             if (settings.Options.ComparisonFile)
             {
@@ -94,6 +98,11 @@ namespace LocalisationTranslator
 
             // Ensure the output folder in . is present
             Utils.CheckOutputPath();
+
+            if (App.recordsWithoutText.Count > 0)
+            {
+                Utils.DumpRecords(App.recordsWithoutText, App.RECORDS_WITH_EMPTY_TEXT_PROPERTY);
+            }
 
             if (App.specialData.Count > 0)
             {
@@ -266,24 +275,33 @@ namespace LocalisationTranslator
 
                             try
                             {
-                                // var task = translateService.TranslateText(text, settings.Source, settings.Target);
-                                // task.Wait();
-                                // var translatedText = task.Result.TranslatedText;
-
-                                // Overwrite the language code
-                                data[settings.FileStructure.LanguageHeader] = settings.Target;
-
-                                // // Overwrite the value of the key containing the text with the translated version
-                                // data[settings.FileStructure.TextHeader] = task.Result.TranslatedText;
-
-                                // TODO - Update for actual App
-                                
-                                if (settings.Options.ComparisonFile)
+                                // Do not allow empty strings to go through as AWS Translate will error
+                                if (!string.IsNullOrEmpty(text))
                                 {
-                                    // Grabs the current record that is being translated
-                                    // adds the translated text to the comparisons file
-                                    var x = (IDictionary<string, object>) App.comparisonData[count];
-                                    x[settings.Target] = "Translated";
+                                    // var task = translateService.TranslateText(text, settings.Source, settings.Target);
+                                    // task.Wait();
+                                    // var translatedText = task.Result.TranslatedText;
+
+                                    // Overwrite the language code
+                                    data[settings.FileStructure.LanguageHeader] = settings.Target;
+
+                                    // // Overwrite the value of the key containing the text with the translated version
+                                    // data[settings.FileStructure.TextHeader] = task.Result.TranslatedText;
+
+                                    // TODO - Update for actual App
+                                    
+                                    if (settings.Options.ComparisonFile)
+                                    {
+                                        // Grabs the current record that is being translated
+                                        // adds the translated text to the comparisons file
+                                        var x = (IDictionary<string, object>) App.comparisonData[count];
+                                        x[settings.Target] = "TODO: Add the translated value";
+                                    }
+                                }
+                                else 
+                                {
+                                    // Only need to update the language code
+                                    data[settings.FileStructure.LanguageHeader] = settings.Target;
                                 }
 
                             }
@@ -353,19 +371,20 @@ namespace LocalisationTranslator
                 return currentLine + 2 + App.erroredLines.Count;
             }
 
-            var errIndex = App.erroredLines.FindIndex(x => x >= currentLine + 2); // If no element is matched return -1
+            // Will never return -1 as the top if statement takes care of the currentLine + 2 is bigger or equal to the last recorder error
+            var errIndex = App.erroredLines.FindIndex(x => x >= currentLine + 2);
             var erroredLine = App.erroredLines[errIndex];
 
             // Handles cases when there are consecutive errored lines
             if (erroredLine == currentLine + 2 && errIndex != App.erroredLines.Count - 1)
             {
                 var foundLine = false;
-                while (!foundLine && errIndex < App.erroredLines.Count)
+                while (!foundLine && errIndex < App.erroredLines.Count - 1)
                 {
                     errIndex++;
                     var nextErroredLine = App.erroredLines[errIndex];
-                    if (nextErroredLine - erroredLine > 1)
-                    {
+                    if (nextErroredLine - erroredLine > 1 && !App.erroredLines.Contains(currentLine + 2 + errIndex))
+                    {   
                         positiveOffset = errIndex;
                         foundLine = true;
                     }
@@ -373,6 +392,11 @@ namespace LocalisationTranslator
                     {
                         erroredLine = nextErroredLine;
                     }
+                }
+
+                if (!foundLine)
+                {
+                    positiveOffset = App.erroredLines.Count;
                 }
             }
             else
@@ -390,16 +414,8 @@ namespace LocalisationTranslator
         /// NOTE: A possibly bottleneck, couldn't think of a better way to make a deep copy only of certain data in a dynamic object
         /// </summary>
         public static void MakeDeepCopy()
-        {   
-            // Allocate as much space as we need + 1 space for the header
-            // Or maybe I don't need to add the header?
-            App.comparisonData = new List<dynamic>(App.records.Count + 1);
-
-            var header = new ExpandoObject();
-            header.TryAdd(settings.FileStructure.KeyHeader, settings.FileStructure.KeyHeader);
-            header.TryAdd(settings.Source, settings.Source);
-            header.TryAdd(settings.Target, settings.Target);
-            App.comparisonData.Add(header);
+        {
+            App.comparisonData = new List<dynamic>(App.records.Count);
     
             foreach(var expando in App.records)
             {
