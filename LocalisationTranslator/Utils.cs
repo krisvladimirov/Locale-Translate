@@ -4,6 +4,7 @@ using CsvHelper;
 using System.IO;
 using System;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace LocalisationTranslator
 {
@@ -216,6 +217,9 @@ namespace LocalisationTranslator
         {
             var skipRow = false;
             var invalid = false;
+            // Denotes there is an issue between the mapping of the header values and the corresponding 'key', 'language' and 'text' attributes
+            // The app wouldn't know where to search for them. In other words one more boolean to take care of collecting all error from the header validation.
+            var settingsMappingError = false;
             var lastErrorLine = -1;
             // Keeps an estimate of how many characters will be sent over to Amazon Translate
             int totalCharacters = 0;
@@ -287,10 +291,41 @@ namespace LocalisationTranslator
                     {
                         if (fileHeaders[i] != App.settings.FileStructure.Headers[i])
                         {
-                            invalid = true;
+                            settingsMappingError = true;
                             App.errors.Add(new Log(Occurance.WhenHeadersAreNotMatching, 0, fileHeaders[i], i));
                         }
+
+                        // Error foun
+                        if (settingsMappingError && (i == fileHeaders.Length - 1)) invalid = true;
                         i++;
+                    }
+
+                    if (!fileHeaders.Any(x => x.Equals(App.settings.FileStructure.TextHeader, StringComparison.Ordinal)))
+                    {
+                        App.errors.Add(
+                            new Log(
+                                Occurance.WhenHeaderMappingIsWrong,
+                                0,
+                                $"\"{nameof(App.settings.FileStructure.TextHeader)}\": \"{App.settings.FileStructure.TextHeader}\""
+                            ));
+                    }
+                    if (!fileHeaders.Any(x => x.Equals(App.settings.FileStructure.KeyHeader, StringComparison.Ordinal)))
+                    {
+                        App.errors.Add(
+                            new Log(
+                                Occurance.WhenHeaderMappingIsWrong,
+                                0,
+                                $"\"{nameof(App.settings.FileStructure.KeyHeader)}\": \"{App.settings.FileStructure.KeyHeader}\""
+                            ));
+                    }
+                    if (!fileHeaders.Any(x => x.Equals(App.settings.FileStructure.LanguageHeader, StringComparison.Ordinal)))
+                    {
+                        App.errors.Add(
+                            new Log(
+                                Occurance.WhenHeaderMappingIsWrong,
+                                0,
+                                $"\"{nameof(App.settings.FileStructure.LanguageHeader)}\": \"{App.settings.FileStructure.LanguageHeader}\""
+                            ));
                     }
                 }
 

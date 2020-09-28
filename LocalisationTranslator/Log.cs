@@ -104,6 +104,10 @@ namespace LocalisationTranslator
                     log.Message = $"The header: '{log.Token}' at column: {log.TokenIndex} does not match with the specified header in 'AppSettings.FileStructure.Headers'";
                     break;
 
+                case Occurance.WhenHeaderMappingIsWrong:
+                    log.Message = $"The attribute to search by: {log.Token} does not match with any specified header in 'AppSettings.FileStructure.Headers'";
+                    break;
+
                 case Occurance.WhenReadingMissingData:
                     log.Message = $"At line: {log.Line}, no value was found for '{log.Token}'.";
                     break;
@@ -173,18 +177,19 @@ namespace LocalisationTranslator
         WhenHeadersAreLess = 1,
         WhenHeadersAreMore = 2,
         WhenHeadersAreNotMatching = 3,
-        WhenReadingMissingData = 4,
-        WhenReadingBadData = 5,
-        WhenTranslating = 6,
-        WhenValidating = 7,
-        WhenShipping = 8,
-        CSVHelperThrow = 9,
-        WhenDumpingLog = 10,
-        NotTranslatedSeparateFile = 11,
-        NotTranslatedSameFile = 12,
-        TranslatedSeparateFile = 13,
-        TranslatedSameFile = 14,
-        FileDoesNotExist = 15,
-        FileExtensionIsWrong = 16
+        WhenHeaderMappingIsWrong = 4,
+        WhenReadingMissingData = 5,
+        WhenReadingBadData = 6,
+        WhenTranslating = 7,
+        WhenValidating = 8,
+        WhenShipping = 9,
+        CSVHelperThrow = 10,
+        WhenDumpingLog = 11,
+        NotTranslatedSeparateFile = 12,
+        NotTranslatedSameFile = 13,
+        TranslatedSeparateFile = 14,
+        TranslatedSameFile = 15,
+        FileDoesNotExist = 16,
+        FileExtensionIsWrong = 17
     }
 }
